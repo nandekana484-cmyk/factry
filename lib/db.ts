@@ -9,15 +9,24 @@ const dbPath = join(dataDir, 'database.sqlite')
 const db = new Database(dbPath)
 
 export function run(sql: string, params?: any) {
-  return db.prepare(sql).run(params)
+  const stmt = db.prepare(sql)
+  if (params === undefined) return stmt.run()
+  if (Array.isArray(params)) return stmt.run(...params)
+  return stmt.run(params)
 }
 
 export function get(sql: string, params?: any) {
-  return db.prepare(sql).get(params)
+  const stmt = db.prepare(sql)
+  if (params === undefined) return stmt.get()
+  if (Array.isArray(params)) return stmt.get(...params)
+  return stmt.get(params)
 }
 
 export function all(sql: string, params?: any) {
-  return db.prepare(sql).all(params)
+  const stmt = db.prepare(sql)
+  if (params === undefined) return stmt.all()
+  if (Array.isArray(params)) return stmt.all(...params)
+  return stmt.all(params)
 }
 
 export function createUserSync(email: string, passwordPlain: string, role: 'user' | 'approver' | 'admin' = 'user') {

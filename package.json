@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "db:init": "ts-node ./lib/db-init.ts",
+    "db:init": "node -r ts-node/register ./lib/db-init.ts",
+    "db:init:js": "node ./lib/db-init.js",
+    "db:init:tsc": "tsc ./lib/db-init.ts --outDir ./.tmp-tsc --module commonjs --target es2020 --esModuleInterop && node ./.tmp-tsc/db-init.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
