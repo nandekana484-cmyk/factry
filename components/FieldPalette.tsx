@@ -1,7 +1,7 @@
 "use client";
 
 type Props = {
-  onAdd: (type: "header" | "paragraph") => void;
+  onAdd: (type: string) => void;
 };
 
 export default function FieldPalette({ onAdd }: Props) {
@@ -10,18 +10,19 @@ export default function FieldPalette({ onAdd }: Props) {
       <h2 className="font-bold text-lg mb-2">フィールドパレット</h2>
 
       <button
-        onClick={() => onAdd("header")}
+        onClick={() => onAdd("text")}
         className="w-full bg-blue-500 text-white py-2 rounded"
       >
-        見出しを追加
+        テキストを追加
       </button>
-
-      <button
-        onClick={() => onAdd("paragraph")}
-        className="w-full bg-green-500 text-white py-2 rounded"
-      >
-        段落を追加
-      </button>
+      <button onClick={() => onAdd("text")}>テキスト</button>
+      <button onClick={() => onAdd("line")}>罫線</button>
+      <button onClick={() => onAdd("rect")}>四角形</button>
+      <button onClick={() => onAdd("circle")}>丸</button>
+      <button onClick={() => onAdd("triangle")}>三角形</button>
+      <button onClick={() => onAdd("arrow")}>矢印</button>
+      <button onClick={() => onAdd("table")}>表</button>
+      <button onClick={() => onAdd("image")}>画像</button>
     </div>
   );
 }
