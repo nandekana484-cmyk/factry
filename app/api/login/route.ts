@@ -1,35 +1,44 @@
-import { NextResponse } from 'next/server'
-import { findUserByEmail } from '../../../lib/db'
-import bcrypt from 'bcryptjs'
+import { NextResponse } from "next/server";
+import { findUserByEmail } from "@/lib/db";
+import bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
-  try {
-    const body = await req.json()
-    const email = body?.email
-    const password = body?.password
+  const { email, password } = await req.json();
 
-    if (!email || !password) {
-      return NextResponse.json({ error: 'email and password are required' }, { status: 400 })
-    }
+  // SQLite からユーザー取得
+  const user = findUserByEmail(email);
 
-    const user = findUserByEmail(email)
-    if (!user) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
-
-    const ok = bcrypt.compareSync(password, user.password)
-    if (!ok) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
-
-    // Cookie にログイン状態を保存（簡易版）
-    const res = NextResponse.json({ ok: true }, { status: 200 })
-    res.cookies.set({
-      name: "token",
-      value: "devtoken", // フェーズ1は固定値でOK
-      httpOnly: true,
-      path: "/",
-    })
-
-    return res
-  } catch (err) {
-    console.error('login error', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  if (!user) {
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
+
+  // パスワード照合
+  const ok = bcrypt.compareSync(password, user.password);
+  if (!ok) {
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  }
+
+  // Cookie に token と role を保存（セッション Cookie）
+  const res = NextResponse.json({ ok: true, role: user.role });
+
+  res.cookies.set({
+    name: "token",
+    value: "devtoken",
+    httpOnly: true,
+    secure: true,       // HTTPS 環境で安全に送信
+    sameSite: "lax",    // セキュリティ向上
+    path: "/",          // 全ページで有効
+    // maxAge を書かない → セッション Cookie（ブラウザ閉じたら消える）
+  });
+
+  res.cookies.set({
+    name: "role",
+    value: user.role,
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+  });
+
+  return res;
 }
