@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { nanoid } from "nanoid";
 
 export const useEditor = () => {
@@ -29,7 +29,10 @@ export const useEditor = () => {
           ...base,
           label: "テキスト",
           fontSize: 16,
+          fontFamily: "sans-serif",
+          textAlign: "left",
           color: "#000000",
+          editable: true,
         };
         break;
       case "line":
@@ -39,6 +42,7 @@ export const useEditor = () => {
           height: 2,
           borderColor: "#000000",
           borderWidth: 2,
+          editable: false,
         };
         break;
       case "rect":
@@ -47,6 +51,7 @@ export const useEditor = () => {
           borderColor: "#000000",
           borderWidth: 2,
           backgroundColor: "transparent",
+          editable: false,
         };
         break;
       case "circle":
@@ -55,6 +60,7 @@ export const useEditor = () => {
           borderColor: "#000000",
           borderWidth: 2,
           backgroundColor: "transparent",
+          editable: false,
         };
         break;
       case "triangle":
@@ -62,6 +68,7 @@ export const useEditor = () => {
           ...base,
           borderColor: "#000000",
           borderWidth: 2,
+          editable: false,
         };
         break;
       case "arrow":
@@ -70,6 +77,7 @@ export const useEditor = () => {
           borderColor: "#000000",
           borderWidth: 4,
           arrowSize: 10,
+          editable: false,
         };
         break;
       case "table":
@@ -83,6 +91,7 @@ export const useEditor = () => {
           cols,
           borderColor: "#000000",
           borderWidth: 1,
+          editable: false,
           cells: Array.from({ length: rows }).map(() =>
             Array.from({ length: cols }).map(() => ({
               text: "",
@@ -99,6 +108,7 @@ export const useEditor = () => {
         block = {
           ...base,
           imageUrl: "",
+          editable: false,
         };
         break;
       case "approvalStampPlaceholder":
@@ -113,6 +123,7 @@ export const useEditor = () => {
           borderColor: "#999999",
           borderWidth: 2,
           backgroundColor: "transparent",
+          editable: false,
         };
         break;
       case "managementNumberPlaceholder":
@@ -123,6 +134,7 @@ export const useEditor = () => {
           borderColor: "#666666",
           borderWidth: 1,
           backgroundColor: "transparent",
+          editable: false,
         };
         break;
       case "titlePlaceholder":
@@ -133,16 +145,50 @@ export const useEditor = () => {
           value: "",
           fontSize: 20,
           fontWeight: "bold",
+          fontFamily: "sans-serif",
+          textAlign: "left",
           color: "#000000",
           borderColor: "#666666",
           borderWidth: 1,
           backgroundColor: "transparent",
+          editable: true,
         };
         break;
     }
 
     setBlocks((prev) => [...prev, block]);
     setSelectedBlock(block);
+  };
+
+  // HTMLテーブルからテーブルブロックを追加
+  const addTableBlock = (cells: any[][], x: number = 100, y: number = 100) => {
+    const rows = cells.length;
+    const cols = cells[0]?.length || 0;
+
+    if (rows === 0 || cols === 0) {
+      return null;
+    }
+
+    const block: any = {
+      id: nanoid(),
+      type: "table",
+      x,
+      y,
+      width: Math.max(cols * 80, 240),
+      height: Math.max(rows * 30, 90),
+      isEditing: false,
+      rotate: 0,
+      rows,
+      cols,
+      borderColor: "#000000",
+      borderWidth: 1,
+      editable: true,
+      cells: cells,
+    };
+
+    setBlocks((prev) => [...prev, block]);
+    setSelectedBlock(block);
+    return block;
   };
 
   const updateBlock = (id: string, updated: any) => {
@@ -191,16 +237,18 @@ export const useEditor = () => {
     return template;
   };
 
-  // テンプレート上書き保存
-  const saveTemplateOverwrite = (name: string) => {
+  // テンプレート上書き保存（同じ名前のまま更新）
+  const saveTemplateOverwrite = () => {
     if (!selectedTemplateId) return null;
 
     const existing = JSON.parse(localStorage.getItem("templates") || "[]");
+    const currentTemplate = existing.find((t: any) => t.id === selectedTemplateId);
+    if (!currentTemplate) return null;
+
     const updated = existing.map((t: any) =>
       t.id === selectedTemplateId
         ? {
             ...t,
-            name,
             blocks: JSON.parse(JSON.stringify(blocks)),
             updatedAt: Date.now(),
           }
@@ -211,13 +259,31 @@ export const useEditor = () => {
     return updated.find((t: any) => t.id === selectedTemplateId);
   };
 
+  // 名前を変更して新規保存
+  const saveTemplateAsNew = (newName: string) => {
+    const template = {
+      id: nanoid(),
+      name: newName,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      blocks: JSON.parse(JSON.stringify(blocks)),
+    };
+
+    const existing = JSON.parse(localStorage.getItem("templates") || "[]");
+    const updated = [...existing, template];
+    localStorage.setItem("templates", JSON.stringify(updated));
+
+    setSelectedTemplateId(template.id);
+    return template;
+  };
+
   // 新規作成（テンプレート選択を解除）
-  const newTemplate = () => {
+  const newTemplate = useCallback(() => {
     setBlocks([]);
     setSelectedBlock(null);
     setSelectedCell(null);
     setSelectedTemplateId(null);
-  };
+  }, []);
 
   // テンプレート一覧を取得
   const getTemplates = () => {
@@ -227,7 +293,7 @@ export const useEditor = () => {
   };
 
   // テンプレートから読み込む
-  const loadTemplate = (templateId: string) => {
+  const loadTemplate = useCallback((templateId: string) => {
     const templates = getTemplates();
     const template = templates.find((t: any) => t.id === templateId);
     if (template) {
@@ -236,7 +302,7 @@ export const useEditor = () => {
       setSelectedCell(null);
       setSelectedTemplateId(templateId); // 選択中のテンプレートIDをセット
     }
-  };
+  }, []);
 
   // テンプレート削除
   const deleteTemplate = (templateId: string) => {
@@ -248,6 +314,7 @@ export const useEditor = () => {
   return {
     blocks,
     addBlock,
+    addTableBlock,
     updateBlock,
     selectedBlock,
     selectBlock,
@@ -256,10 +323,15 @@ export const useEditor = () => {
     setSelectedCell,
     saveTemplate,
     saveTemplateOverwrite,
-    getTemplates,
+    saveTemplateAsNew,
     loadTemplate,
     deleteTemplate,
     selectedTemplateId,
     newTemplate,
+    setAllBlocks: (newBlocks: any[]) => {
+      setBlocks(newBlocks);
+      setSelectedBlock(null);
+      setSelectedCell(null);
+    },
   };
 };

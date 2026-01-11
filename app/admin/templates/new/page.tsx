@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import FieldPalette from "@/components/FieldPalette";
 import PropertyEditor from "@/components/PropertyEditor";
 import TemplateList from "@/components/TemplateList";
@@ -8,6 +9,7 @@ import EditorContainer from "@/components/EditorContainer";
 import { useEditor } from "@/lib/useEditor";
 
 export default function TemplateCreatePage() {
+  const router = useRouter();
   const {
     blocks,
     addBlock,
@@ -19,6 +21,7 @@ export default function TemplateCreatePage() {
     setSelectedCell,
     saveTemplate,
     saveTemplateOverwrite,
+    saveTemplateAsNew,
     loadTemplate,
     selectedTemplateId,
     newTemplate,
@@ -26,21 +29,61 @@ export default function TemplateCreatePage() {
 
   const [templateRefresh, setTemplateRefresh] = useState(0);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
+  const [showSaveOptions, setShowSaveOptions] = useState(false);
+  const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
   const [templateName, setTemplateName] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  // beforeunload イベント（ブラウザを閉じる/リロード時の警告）
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "編集内容が保存されていません。このページを離れると変更内容は失われます。";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  // 保存してから次のアクションを実行
+  const handleSaveAndProceed = async () => {
+    if (selectedTemplateId) {
+      saveTemplateOverwrite();
+    } else if (templateName.trim()) {
+      saveTemplate(templateName);
+    }
+    setIsDirty(false);
+    setShowUnsavedDialog(false);
+    if (pendingAction) {
+      pendingAction();
+    }
+  };
+
+  // 保存しないで次のアクションを実行
+  const handleDiscardAndProceed = () => {
+    setIsDirty(false);
+    setShowUnsavedDialog(false);
+    if (pendingAction) {
+      pendingAction();
+    }
+  };
 
   // 保存ボタンを押した時の処理
   const handleSaveButtonClick = () => {
     if (selectedTemplateId) {
-      // 上書き保存の場合：確認ダイアログを表示
+      // 既存テンプレート：保存オプション選択ダイアログを表示
       const templates = JSON.parse(localStorage.getItem("templates") || "[]");
       const currentTemplate = templates.find((t: any) => t.id === selectedTemplateId);
       if (currentTemplate) {
         setTemplateName(currentTemplate.name);
       }
-      setShowOverwriteConfirm(true);
+      setShowSaveOptions(true);
     } else {
-      // 新規保存の場合：保存ダイアログを表示
+      // 新規テンプレート：保存ダイアログを表示
       setTemplateName("");
       setShowSaveDialog(true);
     }
@@ -53,27 +96,68 @@ export default function TemplateCreatePage() {
     setTemplateName("");
     setShowSaveDialog(false);
     setTemplateRefresh((prev) => prev + 1);
+    setIsDirty(false);
   };
 
-  // 上書き保存処理
-  const handleOverwriteTemplate = () => {
-    if (!templateName.trim()) return;
-    saveTemplateOverwrite(templateName);
-    setTemplateName("");
-    setShowOverwriteConfirm(false);
+  // 上書き保存処理（名前は変更しない）
+  const handleSaveOverwrite = () => {
+    saveTemplateOverwrite();
+    setShowSaveOptions(false);
     setTemplateRefresh((prev) => prev + 1);
+    setIsDirty(false);
+  };
+
+  // 名前を変更して新規保存
+  const handleSaveAsNew = () => {
+    if (!templateName.trim()) return;
+    saveTemplateAsNew(templateName);
+    setTemplateName("");
+    setShowSaveAsDialog(false);
+    setShowSaveOptions(false);
+    setTemplateRefresh((prev) => prev + 1);
+    setIsDirty(false);
   };
 
   const handleLoadTemplate = (templateId: string) => {
-    loadTemplate(templateId);
+    if (isDirty) {
+      setPendingAction(() => () => loadTemplate(templateId));
+      setShowUnsavedDialog(true);
+    } else {
+      loadTemplate(templateId);
+    }
   };
 
   const handleDeleteTemplate = (templateId: string) => {
     // 削除されたテンプレートが現在編集中のものだったら新規作成モードにする
     if (selectedTemplateId === templateId) {
       newTemplate();
+      setIsDirty(false);
     }
     setTemplateRefresh((prev) => prev + 1);
+  };
+
+  // 新規作成処理
+  const handleNewTemplate = () => {
+    if (isDirty) {
+      setPendingAction(() => () => {
+        newTemplate();
+        setTemplateName("");
+      });
+      setShowUnsavedDialog(true);
+    } else {
+      newTemplate();
+      setTemplateName("");
+    }
+  };
+
+  // 戻るボタン処理
+  const handleGoBack = () => {
+    if (isDirty) {
+      setPendingAction(() => () => router.push("/admin/templates"));
+      setShowUnsavedDialog(true);
+    } else {
+      router.push("/admin/templates");
+    }
   };
 
   return (
@@ -81,7 +165,10 @@ export default function TemplateCreatePage() {
 
       {/* 左：フィールドパレット */}
       <div className="w-64 border-r overflow-y-auto">
-        <FieldPalette onAdd={addBlock} />
+        <FieldPalette onAdd={(type, role) => {
+          addBlock(type, role);
+          setIsDirty(true);
+        }} />
       </div>
 
       {/* 中央：エディタ */}
@@ -89,13 +176,19 @@ export default function TemplateCreatePage() {
         <EditorContainer
           blocks={blocks}
           selectedBlock={selectedBlock}
-          updateBlock={updateBlock}
+          updateBlock={(id: string, updated: any) => {
+            updateBlock(id, updated);
+            setIsDirty(true);
+          }}
           selectBlock={selectBlock}
-          deleteBlock={deleteBlock}
+          deleteBlock={(id: string) => {
+            deleteBlock(id);
+            setIsDirty(true);
+          }}
           selectedCell={selectedCell}
           setSelectedCell={setSelectedCell}
           onSaveTemplate={handleSaveButtonClick}
-          onNewTemplate={newTemplate}
+          onNewTemplate={handleNewTemplate}
         />
       </div>
 
@@ -116,7 +209,10 @@ export default function TemplateCreatePage() {
         <div className="flex-1 min-h-0 overflow-y-auto border-t">
           <PropertyEditor 
             block={selectedBlock} 
-            onUpdate={updateBlock}
+            onUpdate={(id: string, updated: any) => {
+              updateBlock(id, updated);
+              setIsDirty(true);
+            }}
             selectedCell={selectedCell}
             onSelectCell={setSelectedCell}
           />
@@ -164,30 +260,17 @@ export default function TemplateCreatePage() {
       )}
 
       {/* 上書き保存確認ダイアログ */}
-      {showOverwriteConfirm && (
+      {showSaveOptions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg p-6 w-96">
-            <h3 className="text-lg font-bold mb-4">テンプレートを上書き保存</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              このテンプレートを上書き保存しますか？
+            <h3 className="text-lg font-bold mb-4">テンプレートの保存方法を選択</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              既存の「{templateName}」テンプレートをどのように保存しますか？
             </p>
-            <input
-              type="text"
-              placeholder="テンプレート名"
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleOverwriteTemplate();
-                }
-              }}
-              className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              autoFocus
-            />
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => {
-                  setShowOverwriteConfirm(false);
+                  setShowSaveOptions(false);
                   setTemplateName("");
                 }}
                 className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition"
@@ -195,10 +278,86 @@ export default function TemplateCreatePage() {
                 キャンセル
               </button>
               <button
-                onClick={handleOverwriteTemplate}
-                className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition"
+                onClick={() => {
+                  setShowSaveAsDialog(true);
+                }}
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
               >
-                上書き保存する
+                名前を変更して新規保存
+              </button>
+              <button
+                onClick={handleSaveOverwrite}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+              >
+                上書き保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 名前を変更して新規保存ダイアログ */}
+      {showSaveAsDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-96">
+            <h3 className="text-lg font-bold mb-4">名前を変更して新規保存</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              新しいテンプレート名を入力してください
+            </p>
+            <input
+              type="text"
+              placeholder="新しいテンプレート名"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSaveAsNew();
+                }
+              }}
+              className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-green-400"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setShowSaveAsDialog(false);
+                  setTemplateName("");
+                }}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleSaveAsNew}
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
+              >
+                新規保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 未保存内容の確認ダイアログ */}
+      {showUnsavedDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-96">
+            <h3 className="text-lg font-bold mb-4">編集内容が保存されていません</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              編集内容が保存されていません。保存しますか？
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={handleDiscardAndProceed}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition"
+              >
+                保存しない
+              </button>
+              <button
+                onClick={handleSaveAndProceed}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+              >
+                保存する
               </button>
             </div>
           </div>

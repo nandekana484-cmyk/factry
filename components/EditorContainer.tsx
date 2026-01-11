@@ -124,6 +124,7 @@ export default function EditorContainer({ blocks, selectedBlock, updateBlock, se
               const shouldRotate = ["rect", "circle", "triangle", "arrow", "image", "text", "line"].includes(block.type);
               const rotation = shouldRotate ? block.rotate || 0 : 0;
               const isSelected = selectedBlock?.id === block.id;
+              const isEditable = block.editable !== false; // デフォルトは editable
 
               return (
                 <Rnd
@@ -141,8 +142,8 @@ export default function EditorContainer({ blocks, selectedBlock, updateBlock, se
                     y: Math.round(block.y) 
                   }}
                   bounds="parent"
-                  disableDragging={!isSelected || block.isEditing}
-                  enableResizing={isSelected && !block.isEditing}
+                  disableDragging={!isEditable || !isSelected || block.isEditing}
+                  enableResizing={isEditable && isSelected && !block.isEditing}
                   dragHandleClassName="drag-handle"
                   onClick={() => selectBlock(block.id)}
                   // 要件1, 2, 6: ドラッグ時に座標を完全に整数化
@@ -231,19 +232,25 @@ export default function EditorContainer({ blocks, selectedBlock, updateBlock, se
                     {/* --- テキスト --- */}
                     {block.type === "text" && (
                       <div
-                        contentEditable
+                        contentEditable={block.editable !== false}
                         suppressContentEditableWarning
                         className="w-full h-full"
                         style={{
                           fontSize: `${Math.round(block.fontSize || 16)}px`,
                           fontWeight: block.fontWeight || "normal",
+                          fontFamily: block.fontFamily || "sans-serif",
+                          textAlign: block.textAlign || "left",
                           color: block.color,
                           outline: "none",
                           width: "100%",
                           height: "100%",
                           pointerEvents: block.isEditing ? "auto" : "none", // 編集時のみ有効化
                         }}
-                        onFocus={() => updateBlock(block.id, { isEditing: true })}
+                        onFocus={() => {
+                          if (block.editable !== false) {
+                            updateBlock(block.id, { isEditing: true });
+                          }
+                        }}
                         onBlur={(e) =>
                           updateBlock(block.id, {
                             label: e.currentTarget.innerText,
@@ -467,24 +474,29 @@ export default function EditorContainer({ blocks, selectedBlock, updateBlock, se
                 {/* --- タイトルプレースホルダー --- */}
                 {block.type === "titlePlaceholder" && (
                   <div
-                    contentEditable
+                    contentEditable={block.editable !== false}
                     suppressContentEditableWarning
                     className="w-full h-full"
                     style={{
                       fontSize: `${Math.round(block.fontSize || 20)}px`,
                       fontWeight: block.fontWeight || "bold",
+                      fontFamily: block.fontFamily || "sans-serif",
+                      textAlign: block.textAlign || "left",
                       color: block.color || "#000000",
                       outline: "none",
                       width: "100%",
                       height: "100%",
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      textAlign: "center",
+                      justifyContent: block.textAlign === "center" ? "center" : (block.textAlign === "right" ? "flex-end" : "flex-start"),
                       padding: "8px",
                       pointerEvents: block.isEditing ? "auto" : "none",
                     }}
-                    onFocus={() => updateBlock(block.id, { isEditing: true })}
+                    onFocus={() => {
+                      if (block.editable !== false) {
+                        updateBlock(block.id, { isEditing: true });
+                      }
+                    }}
                     onBlur={(e) =>
                       updateBlock(block.id, {
                         value: e.currentTarget.innerText,

@@ -180,6 +180,19 @@ export default function PropertyEditor({
             </div>
 
             <div>
+              <label className="block text-xs text-gray-500">フォント</label>
+              <select
+                value={block.fontFamily || "sans-serif"}
+                onChange={(e) => handleChange("fontFamily", e.target.value)}
+                className="w-full border rounded text-sm"
+              >
+                <option value="sans-serif">サンセリフ（デフォルト）</option>
+                <option value="serif">セリフ</option>
+                <option value="monospace">等幅フォント</option>
+              </select>
+            </div>
+
+            <div>
               <label className="block text-xs text-gray-500">フォントサイズ</label>
               <input
                 type="number"
@@ -200,6 +213,45 @@ export default function PropertyEditor({
                 <option value="bold">太字</option>
                 <option value="lighter">細字</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500">テキスト配置</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleChange("textAlign", "left")}
+                  className={`flex-1 py-2 px-2 border rounded text-sm transition ${
+                    (block.textAlign || "left") === "left"
+                      ? "bg-blue-500 text-white border-blue-500"
+                      : "bg-white border-gray-300 hover:border-gray-400"
+                  }`}
+                  title="左寄せ"
+                >
+                  ⬅
+                </button>
+                <button
+                  onClick={() => handleChange("textAlign", "center")}
+                  className={`flex-1 py-2 px-2 border rounded text-sm transition ${
+                    (block.textAlign || "left") === "center"
+                      ? "bg-blue-500 text-white border-blue-500"
+                      : "bg-white border-gray-300 hover:border-gray-400"
+                  }`}
+                  title="中央"
+                >
+                  ⬇⬆
+                </button>
+                <button
+                  onClick={() => handleChange("textAlign", "right")}
+                  className={`flex-1 py-2 px-2 border rounded text-sm transition ${
+                    (block.textAlign || "left") === "right"
+                      ? "bg-blue-500 text-white border-blue-500"
+                      : "bg-white border-gray-300 hover:border-gray-400"
+                  }`}
+                  title="右寄せ"
+                >
+                  ➡
+                </button>
+              </div>
             </div>
           </>
         )}
