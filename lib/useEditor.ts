@@ -6,8 +6,10 @@ import { nanoid } from "nanoid";
 export const useEditor = () => {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<any | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
-  const addBlock = (type: string) => {
+  const addBlock = (type: string, role?: string) => {
     const base = {
       id: nanoid(),
       type,
@@ -16,6 +18,7 @@ export const useEditor = () => {
       width: 200,
       height: 80,
       isEditing: false,
+      rotate: 0,
     };
 
     let block: any = {};
@@ -57,17 +60,16 @@ export const useEditor = () => {
       case "triangle":
         block = {
           ...base,
-          color: "#000000",
-          rotate: 0,
+          borderColor: "#000000",
+          borderWidth: 2,
         };
         break;
       case "arrow":
         block = {
           ...base,
-          color: "#000000",
+          borderColor: "#000000",
           borderWidth: 4,
           arrowSize: 10,
-          rotate: 0,
         };
         break;
       case "table":
@@ -84,6 +86,9 @@ export const useEditor = () => {
           cells: Array.from({ length: rows }).map(() =>
             Array.from({ length: cols }).map(() => ({
               text: "",
+              fontSize: 12,
+              fontWeight: "normal",
+              color: "#000000",
               width: 80,
               height: 30,
             }))
@@ -94,6 +99,44 @@ export const useEditor = () => {
         block = {
           ...base,
           imageUrl: "",
+        };
+        break;
+      case "approvalStampPlaceholder":
+        block = {
+          ...base,
+          width: 120,
+          height: 120,
+          role: role || "approver",
+          stampImage: "",
+          name: "",
+          date: "",
+          borderColor: "#999999",
+          borderWidth: 2,
+          backgroundColor: "transparent",
+        };
+        break;
+      case "managementNumberPlaceholder":
+        block = {
+          ...base,
+          width: 200,
+          height: 40,
+          borderColor: "#666666",
+          borderWidth: 1,
+          backgroundColor: "transparent",
+        };
+        break;
+      case "titlePlaceholder":
+        block = {
+          ...base,
+          width: 400,
+          height: 50,
+          value: "",
+          fontSize: 20,
+          fontWeight: "bold",
+          color: "#000000",
+          borderColor: "#666666",
+          borderWidth: 1,
+          backgroundColor: "transparent",
         };
         break;
     }
@@ -116,6 +159,90 @@ export const useEditor = () => {
   const selectBlock = (id: string) => {
     const block = blocks.find((b) => b.id === id);
     if (block) setSelectedBlock(block);
+    // 異なるブロックに切り替わる場合のみセルをリセット
+    if (selectedBlock?.id !== id) {
+      setSelectedCell(null);
+    }
+  };
+
+  const deleteBlock = (id: string) => {
+    setBlocks((prev) => prev.filter((b) => b.id !== id));
+    // 削除されたブロックが選択中だったら選択を解除
+    if (selectedBlock?.id === id) {
+      setSelectedBlock(null);
+      setSelectedCell(null);
+    }
+  };
+
+  // テンプレート保存
+  const saveTemplate = (name: string) => {
+    const template = {
+      id: nanoid(),
+      name,
+      createdAt: Date.now(),
+      blocks: JSON.parse(JSON.stringify(blocks)), // ディープコピー
+    };
+
+    const existing = JSON.parse(localStorage.getItem("templates") || "[]");
+    const updated = [...existing, template];
+    localStorage.setItem("templates", JSON.stringify(updated));
+
+    setSelectedTemplateId(template.id); // 新規保存後に選択状態にする
+    return template;
+  };
+
+  // テンプレート上書き保存
+  const saveTemplateOverwrite = (name: string) => {
+    if (!selectedTemplateId) return null;
+
+    const existing = JSON.parse(localStorage.getItem("templates") || "[]");
+    const updated = existing.map((t: any) =>
+      t.id === selectedTemplateId
+        ? {
+            ...t,
+            name,
+            blocks: JSON.parse(JSON.stringify(blocks)),
+            updatedAt: Date.now(),
+          }
+        : t
+    );
+    localStorage.setItem("templates", JSON.stringify(updated));
+
+    return updated.find((t: any) => t.id === selectedTemplateId);
+  };
+
+  // 新規作成（テンプレート選択を解除）
+  const newTemplate = () => {
+    setBlocks([]);
+    setSelectedBlock(null);
+    setSelectedCell(null);
+    setSelectedTemplateId(null);
+  };
+
+  // テンプレート一覧を取得
+  const getTemplates = () => {
+    if (typeof window === "undefined") return [];
+    const templates = JSON.parse(localStorage.getItem("templates") || "[]");
+    return templates;
+  };
+
+  // テンプレートから読み込む
+  const loadTemplate = (templateId: string) => {
+    const templates = getTemplates();
+    const template = templates.find((t: any) => t.id === templateId);
+    if (template) {
+      setBlocks(JSON.parse(JSON.stringify(template.blocks)));
+      setSelectedBlock(null);
+      setSelectedCell(null);
+      setSelectedTemplateId(templateId); // 選択中のテンプレートIDをセット
+    }
+  };
+
+  // テンプレート削除
+  const deleteTemplate = (templateId: string) => {
+    const existing = JSON.parse(localStorage.getItem("templates") || "[]");
+    const updated = existing.filter((t: any) => t.id !== templateId);
+    localStorage.setItem("templates", JSON.stringify(updated));
   };
 
   return {
@@ -124,5 +251,15 @@ export const useEditor = () => {
     updateBlock,
     selectedBlock,
     selectBlock,
+    deleteBlock,
+    selectedCell,
+    setSelectedCell,
+    saveTemplate,
+    saveTemplateOverwrite,
+    getTemplates,
+    loadTemplate,
+    deleteTemplate,
+    selectedTemplateId,
+    newTemplate,
   };
 };

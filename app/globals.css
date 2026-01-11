@@ -67,3 +67,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* 印刷時にテキストブロックの編集用枠線を非表示 */
+@media print {
+  .editor-text-block {
+    border: none !important;
+  }
+  
+  .editor-selected-border {
+    border: none !important;
+  }
+  
+  .drag-handle {
+    border: none !important;
+  }
+}

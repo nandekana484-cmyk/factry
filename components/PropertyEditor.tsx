@@ -1,117 +1,379 @@
 "use client";
 
 interface PropertyEditorProps {
-  selectedBlock: any;
-  updateBlock: (id: string, updated: any) => void;
+  block: any;
+  onUpdate: (id: string, updated: any) => void;
+  selectedCell?: { row: number; col: number } | null;
+  onSelectCell?: (cell: { row: number; col: number } | null) => void;
 }
 
-export default function PropertyEditor({ selectedBlock, updateBlock }: PropertyEditorProps) {
-  if (!selectedBlock) {
+export default function PropertyEditor({
+  block,
+  onUpdate,
+  selectedCell,
+  onSelectCell,
+}: PropertyEditorProps) {
+  if (!block) {
     return (
-      <div className="w-64 bg-white border-l p-4 text-gray-400 text-sm">
+      <div className="h-full bg-white text-gray-400 text-sm overflow-y-auto">
         ブロックを選択してください
       </div>
     );
   }
 
   const handleChange = (key: string, value: any) => {
-    updateBlock(selectedBlock.id, { [key]: value });
+    onUpdate(block.id, { [key]: value });
   };
 
   // --- テーブル操作用関数 ---
   const addRow = () => {
-    const newCols = selectedBlock.cols;
+    const newCols = block.cols;
     const newRow = Array.from({ length: newCols }).map(() => ({
-      text: "", width: 80, height: 30 
+      text: "",
+      width: 80,
+      height: 30,
     }));
-    updateBlock(selectedBlock.id, {
-      rows: selectedBlock.rows + 1,
-      cells: [...selectedBlock.cells, newRow],
+    onUpdate(block.id, {
+      rows: block.rows + 1,
+      cells: [...block.cells, newRow],
     });
   };
 
   const addCol = () => {
-    const newCells = selectedBlock.cells.map((row: any) => [
+    const newCells = block.cells.map((row: any) => [
       ...row,
       { text: "", width: 80, height: 30 },
     ]);
-    updateBlock(selectedBlock.id, {
-      cols: selectedBlock.cols + 1,
+    onUpdate(block.id, {
+      cols: block.cols + 1,
       cells: newCells,
     });
   };
 
+  // --- セル編集用 ---
+  const updateCell = (key: string, value: any) => {
+    if (!selectedCell) return;
+
+    const { row, col } = selectedCell;
+    const newCells = [...block.cells];
+    newCells[row] = [...newCells[row]];
+    newCells[row][col] = { ...newCells[row][col], [key]: value };
+
+    onUpdate(block.id, { cells: newCells });
+  };
+
+  // --- rows/cols 変更関数 ---
+  const handleRowsChange = (newRows: number) => {
+    let newCells = [...block.cells];
+    
+    if (newRows > block.rows) {
+      // 行を追加
+      const newCols = block.cols;
+      for (let i = block.rows; i < newRows; i++) {
+        const newRow = Array.from({ length: newCols }).map(() => ({
+          text: "",
+          fontSize: 12,
+          fontWeight: "normal",
+          color: "#000000",
+          width: 80,
+          height: 30,
+        }));
+        newCells.push(newRow);
+      }
+    } else if (newRows < block.rows) {
+      // 行を削除
+      newCells = newCells.slice(0, newRows);
+    }
+    
+    onUpdate(block.id, { rows: newRows, cells: newCells });
+  };
+
+  const handleColsChange = (newCols: number) => {
+    let newCells = block.cells.map((row: any) => [...row]);
+    
+    if (newCols > block.cols) {
+      // 列を追加
+      newCells = newCells.map((row: any) => [
+        ...row,
+        ...Array.from({ length: newCols - block.cols }).map(() => ({
+          text: "",
+          fontSize: 12,
+          fontWeight: "normal",
+          color: "#000000",
+          width: 80,
+          height: 30,
+        })),
+      ]);
+    } else if (newCols < block.cols) {
+      // 列を削除
+      newCells = newCells.map((row: any) => row.slice(0, newCols));
+    }
+    
+    onUpdate(block.id, { cols: newCols, cells: newCells });
+  };
+
   return (
-    <div className="w-64 bg-white border-l p-4 overflow-y-auto shadow-sm">
-      <h3 className="font-bold mb-4 border-b pb-2 text-gray-700">プロパティ</h3>
-      
-      <div className="space-y-4">
+    <div className="h-full bg-white overflow-y-auto">
+      <h3 className="font-bold text-gray-700">プロパティ</h3>
+
+      <div>
         {/* 基本座標 */}
         <div>
           <label className="block text-xs text-gray-500">位置 (X, Y)</label>
-          <div className="flex gap-2 mt-1">
+          <div className="flex">
             <input
               type="number"
-              value={Math.round(selectedBlock.x)}
+              value={Math.round(block.x)}
               onChange={(e) => handleChange("x", Number(e.target.value))}
-              className="w-full border p-1 rounded text-sm"
+              className="w-full border rounded text-sm"
             />
             <input
               type="number"
-              value={Math.round(selectedBlock.y)}
+              value={Math.round(block.y)}
               onChange={(e) => handleChange("y", Number(e.target.value))}
-              className="w-full border p-1 rounded text-sm"
+              className="w-full border rounded text-sm"
             />
           </div>
         </div>
 
-        {/* 色設定 (タイプによってラベルを変更) */}
+        {/* サイズ */}
         <div>
-          <label className="block text-xs text-gray-500">
-            {selectedBlock.type === "text" ? "文字色" : "枠線色"}
-          </label>
+          <label className="block text-xs text-gray-500">サイズ (W, H)</label>
+          <div className="flex">
+            <input
+              type="number"
+              value={Math.round(block.width)}
+              onChange={(e) => handleChange("width", Number(e.target.value))}
+              className="w-full border rounded text-sm"
+            />
+            <input
+              type="number"
+              value={Math.round(block.height)}
+              onChange={(e) => handleChange("height", Number(e.target.value))}
+              className="w-full border rounded text-sm"
+            />
+          </div>
+        </div>
+
+        {/* 回転 */}
+        <div>
+          <label className="block text-xs text-gray-500">回転 (deg)</label>
           <input
-            type="color"
-            value={selectedBlock.color || selectedBlock.borderColor || "#000000"}
-            onChange={(e) => 
-              handleChange(selectedBlock.type === "text" ? "color" : "borderColor", e.target.value)
-            }
-            className="w-full h-8 mt-1 rounded cursor-pointer"
+            type="number"
+            value={Math.round(block.rotate || 0)}
+            onChange={(e) => handleChange("rotate", Number(e.target.value))}
+            className="w-full border rounded text-sm"
           />
         </div>
 
-        {/* テキスト専用 */}
-        {selectedBlock.type === "text" && (
+        {/* テキスト専用：フォント・サイズ・太さ・色 */}
+        {(block.type === "text" || block.type === "titlePlaceholder") && (
+          <>
+            <div>
+              <label className="block text-xs text-gray-500">文字色</label>
+              <input
+                type="color"
+                value={block.color || "#000000"}
+                onChange={(e) => handleChange("color", e.target.value)}
+                className="w-full h-8 rounded cursor-pointer"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500">フォントサイズ</label>
+              <input
+                type="number"
+                value={block.fontSize || 16}
+                onChange={(e) => handleChange("fontSize", Number(e.target.value))}
+                className="w-full border rounded text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500">フォント太さ</label>
+              <select
+                value={block.fontWeight || "normal"}
+                onChange={(e) => handleChange("fontWeight", e.target.value)}
+                className="w-full border rounded text-sm"
+              >
+                <option value="normal">通常</option>
+                <option value="bold">太字</option>
+                <option value="lighter">細字</option>
+              </select>
+            </div>
+          </>
+        )}
+
+        {/* すべての図形共通：枠線色と太さ */}
+        {block.type !== "text" && block.type !== "titlePlaceholder" && (
+          <>
+            <div>
+              <label className="block text-xs text-gray-500">枠線色</label>
+              <input
+                type="color"
+                value={block.borderColor || "#000000"}
+                onChange={(e) => handleChange("borderColor", e.target.value)}
+                className="w-full h-8 rounded cursor-pointer"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500">枠線の太さ</label>
+              <input
+                type="number"
+                value={block.borderWidth || 1}
+                onChange={(e) => handleChange("borderWidth", Number(e.target.value))}
+                className="w-full border rounded text-sm"
+                min="1"
+                max="10"
+              />
+            </div>
+          </>
+        )}
+
+        {/* 四角形・円：背景色 */}
+        {(block.type === "rect" || block.type === "circle") && (
           <div>
-            <label className="block text-xs text-gray-500">サイズ</label>
+            <label className="block text-xs text-gray-500">背景色</label>
             <input
-              type="number"
-              value={selectedBlock.fontSize}
-              onChange={(e) => handleChange("fontSize", Number(e.target.value))}
-              className="w-full border p-1 rounded text-sm"
+              type="color"
+              value={block.backgroundColor || "#ffffff"}
+              onChange={(e) => handleChange("backgroundColor", e.target.value)}
+              className="w-full h-8 rounded cursor-pointer"
+            />
+          </div>
+        )}
+
+        {/* 罫線：背景色 */}
+        {block.type === "line" && (
+          <div>
+            <label className="block text-xs text-gray-500">線の色</label>
+            <input
+              type="color"
+              value={block.borderColor || "#000000"}
+              onChange={(e) => handleChange("borderColor", e.target.value)}
+              className="w-full h-8 rounded cursor-pointer"
             />
           </div>
         )}
 
         {/* テーブル専用操作 */}
-        {selectedBlock.type === "table" && (
-          <div className="pt-4 border-t space-y-2">
-            <label className="block text-xs font-bold text-gray-600">テーブル操作</label>
-            <button
-              onClick={addRow}
-              className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs py-2 rounded border border-blue-200 transition"
-            >
-              行を追加
-            </button>
-            <button
-              onClick={addCol}
-              className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs py-2 rounded border border-blue-200 transition"
-            >
-              列を追加
-            </button>
-            <div className="text-[10px] text-gray-400 mt-1 text-center">
-              {selectedBlock.rows} 行 × {selectedBlock.cols} 列
+        {block.type === "table" && (
+          <div className="border-t">
+            <label className="block text-xs font-bold text-gray-600">
+              テーブル操作
+            </label>
+            
+            {/* 行数・列数の数値入力 */}
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-xs text-gray-500">行数</label>
+                <input
+                  type="number"
+                  value={block.rows || 3}
+                  onChange={(e) => handleRowsChange(Math.max(1, Number(e.target.value)))}
+                  className="w-full border rounded text-sm"
+                  min="1"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs text-gray-500">列数</label>
+                <input
+                  type="number"
+                  value={block.cols || 3}
+                  onChange={(e) => handleColsChange(Math.max(1, Number(e.target.value)))}
+                  className="w-full border rounded text-sm"
+                  min="1"
+                />
+              </div>
             </div>
+
+            {/* 行・列追加ボタン */}
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={addRow}
+                className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs py-1 rounded border border-blue-200 transition"
+              >
+                +行
+              </button>
+              <button
+                onClick={addCol}
+                className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs py-1 rounded border border-blue-200 transition"
+              >
+                +列
+              </button>
+            </div>
+            
+            {/* セル編集モード */}
+            {selectedCell && block.cells && block.cells[selectedCell.row] && block.cells[selectedCell.row][selectedCell.col] && (
+              <div className="border-t mt-2 pt-2">
+                <label className="block text-xs font-bold text-gray-600">
+                  セル編集 [{selectedCell.row}, {selectedCell.col}]
+                </label>
+                
+                <div>
+                  <label className="block text-xs text-gray-500">テキスト</label>
+                  <textarea
+                    value={block.cells[selectedCell.row][selectedCell.col].text || ""}
+                    onChange={(e) => updateCell("text", e.target.value)}
+                    className="w-full border rounded text-sm p-1 h-16"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500">フォントサイズ</label>
+                  <input
+                    type="number"
+                    value={block.cells[selectedCell.row][selectedCell.col].fontSize || 12}
+                    onChange={(e) => updateCell("fontSize", Number(e.target.value))}
+                    className="w-full border rounded text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500">フォント太さ</label>
+                  <select
+                    value={block.cells[selectedCell.row][selectedCell.col].fontWeight || "normal"}
+                    onChange={(e) => updateCell("fontWeight", e.target.value)}
+                    className="w-full border rounded text-sm"
+                  >
+                    <option value="normal">通常</option>
+                    <option value="bold">太字</option>
+                    <option value="lighter">細字</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500">文字色</label>
+                  <input
+                    type="color"
+                    value={block.cells[selectedCell.row][selectedCell.col].color || "#000000"}
+                    onChange={(e) => updateCell("color", e.target.value)}
+                    className="w-full h-8 rounded cursor-pointer"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="text-[10px] text-gray-400 text-center mt-2">
+              {block.rows} 行 × {block.cols} 列
+            </div>
+          </div>
+        )}
+
+        {/* 承認印プレースホルダー */}
+        {block.type === "approvalStampPlaceholder" && (
+          <div className="mt-2">
+            <label className="block text-xs text-gray-500">役割</label>
+            <select
+              value={block.role || "approver"}
+              onChange={(e) => handleChange("role", e.target.value)}
+              className="w-full border rounded text-sm px-2 py-1"
+            >
+              <option value="creator">作成者</option>
+              <option value="checker">確認者</option>
+              <option value="approver">承認者</option>
+            </select>
           </div>
         )}
       </div>

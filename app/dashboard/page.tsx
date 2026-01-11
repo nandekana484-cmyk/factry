@@ -17,6 +17,18 @@ export default async function DashboardPage() {
   // ロール別に表示するメニュー
   const menuItems = [
     {
+      role: ["admin", "approver", "user"],
+      title: "文書管理",
+      href: "/dashboard/documents",
+      description: "フォルダー管理と文書一覧",
+    },
+    {
+      role: ["admin", "approver", "user"],
+      title: "AI検索",
+      href: "/dashboard/search",
+      description: "文書を検索",
+    },
+    {
       role: ["admin", "approver"],
       title: "管理者ページ",
       href: "/admin",
