@@ -10,8 +10,9 @@ export default function TextBlock({
   updateBlock,
   selectBlock,
   snap,
+  isReadOnly = false,
 }: any) {
-  const isEditable = block.editable !== false;
+  const isEditable = block.editable !== false && !isReadOnly;
 
   return (
     <Rnd
@@ -26,8 +27,23 @@ export default function TextBlock({
         y: Math.round(block.y),
       }}
       bounds="parent"
-      disableDragging={!isEditable || !isSelected || block.isEditing}
-      enableResizing={isEditable && isSelected && !block.isEditing}
+      disableDragging={isReadOnly || !isEditable || !isSelected || block.isEditing}
+      enableResizing={
+        isReadOnly
+          ? false
+          : isEditable && isSelected && !block.isEditing
+          ? {
+              top: true,
+              right: true,
+              bottom: true,
+              left: true,
+              topRight: true,
+              bottomRight: true,
+              bottomLeft: true,
+              topLeft: true,
+            }
+          : false
+      }
       dragHandleClassName="editor-text-handle"
       onClick={() => selectBlock(block.id)}
       onDragStop={(e, d) => {

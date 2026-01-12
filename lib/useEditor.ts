@@ -202,7 +202,12 @@ export const useEditor = () => {
     }
   };
 
-  const selectBlock = (id: string) => {
+  const selectBlock = (id: string | null) => {
+    if (id === null) {
+      setSelectedBlock(null);
+      setSelectedCell(null);
+      return;
+    }
     const block = blocks.find((b) => b.id === id);
     if (block) setSelectedBlock(block);
     // 異なるブロックに切り替わる場合のみセルをリセット
