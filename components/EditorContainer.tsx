@@ -83,6 +83,9 @@ export default function EditorContainer({
   const width = orientation === "portrait" ? base.w : base.h;
   const height = orientation === "portrait" ? base.h : base.w;
 
+  // デバッグ用
+  console.log("Paper:", paper, "Orientation:", orientation, "Width:", width, "Height:", height);
+
   // スナップ関数
   const snap = (value: number, size: number = gridSize): number => {
     const rounded = Math.round(value);
@@ -94,10 +97,10 @@ export default function EditorContainer({
   const offsetY = Math.round((height / 2) % gridSize);
 
   return (
-    <div className="flex flex-col flex-1 bg-gray-50 p-4 overflow-auto">
+    <div className="flex flex-col flex-1 bg-gray-50 overflow-hidden">
       {/* 設定パネル */}
       <div 
-        className="flex gap-4 mb-4 items-center bg-white p-3 shadow-sm rounded"
+        className="flex gap-4 m-4 mb-0 items-center bg-white p-3 shadow-sm rounded"
         data-ignore-deselect="true"
       >
         <select
@@ -177,8 +180,15 @@ export default function EditorContainer({
       </div>
 
       {/* キャンバス */}
-      <div className="overflow-auto flex justify-center">
-        <div style={{ padding: "20px" }}>
+      <div className="flex-1 overflow-auto">
+        <div 
+          style={{ 
+            padding: "50px",
+            width: `${width * zoom + 100}px`,
+            height: `${height * zoom + 100}px`,
+            margin: "0 auto"
+          }}
+        >
           <div
             style={{
               transform: `scale(${zoom})`,
@@ -191,18 +201,18 @@ export default function EditorContainer({
                 width: `${width}px`,
                 height: `${height}px`,
                 border: "1px solid #ccc",
-              backgroundImage: showGrid
-                ? `linear-gradient(#e5e5e5 1px, transparent 1px),
-                   linear-gradient(90deg, #e5e5e5 1px, transparent 1px)`
-                : "none",
-              backgroundSize: showGrid
-                ? `${Math.round(gridSize)}px ${Math.round(gridSize)}px`
-                : "none",
-              backgroundPosition: showGrid
-                ? `${offsetX}px ${offsetY}px`
-                : "none",
-              backgroundAttachment: "local",
-            }}
+                backgroundImage: showGrid
+                  ? `linear-gradient(#e5e5e5 1px, transparent 1px),
+                     linear-gradient(90deg, #e5e5e5 1px, transparent 1px)`
+                  : "none",
+                backgroundSize: showGrid
+                  ? `${Math.round(gridSize)}px ${Math.round(gridSize)}px`
+                  : "none",
+                backgroundPosition: showGrid
+                  ? `${offsetX}px ${offsetY}px`
+                  : "none",
+                backgroundAttachment: "local",
+              }}
               onClick={(e) => {
                 // キャンバス背景のクリック時に選択解除
                 // ブロック側でstopPropagationしているため、ブロッククリックは除外される

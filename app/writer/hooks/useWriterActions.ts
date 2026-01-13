@@ -4,48 +4,66 @@ import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 /**
+ * 本文からタイトルを自動抽出する関数
+ */
+const extractTitleFromBlocks = (blocks: any[]): string => {
+  // テキストブロックからテキストを抽出
+  const textBlocks = blocks.filter(
+    (b) => b.type === "text" || b.type === "titlePlaceholder"
+  );
+  
+  // すべてのテキストを結合
+  const allText = textBlocks
+    .map((b) => b.label || "")
+    .join("\n")
+    .trim();
+  
+  // 最初の非空行を探す
+  const lines = allText.split("\n").map((l) => l.trim());
+  const firstLine = lines.find((l) => l.length > 0) || "無題";
+  
+  // 40文字で切り取る
+  return firstLine.slice(0, 40);
+};
+
+/**
  * useWriterActions
  * Writer の各種アクション（保存・提出・ブロック追加など）を担当
  */
 export const useWriterActions = (
   editor: any,
-  documentTitle: string,
   setIsDirty: (dirty: boolean) => void,
   setIsSaving: (saving: boolean) => void
 ) => {
   const router = useRouter();
 
   const handleSaveDraft = useCallback(() => {
-    if (!documentTitle.trim()) {
-      alert("文書タイトルを入力してください");
-      return;
-    }
+    // 本文からタイトルを自動抽出
+    const autoTitle = extractTitleFromBlocks(editor.blocks);
     
-    editor.saveDraft(documentTitle);
+    editor.saveDraft(autoTitle);
     setIsDirty(false);
-    alert("下書きを保存しました");
-  }, [editor, documentTitle, setIsDirty]);
+    alert(`下書きを保存しました: ${autoTitle}`);
+  }, [editor, setIsDirty]);
 
   const handleSubmitDocument = useCallback(async () => {
-    if (!documentTitle.trim()) {
-      alert("文書タイトルを入力してください");
-      return;
-    }
+    // 本文からタイトルを自動抽出
+    const autoTitle = extractTitleFromBlocks(editor.blocks);
     
     setIsSaving(true);
     try {
-      editor.submitDocument(documentTitle);
+      editor.submitDocument(autoTitle);
       setIsDirty(false);
       setTimeout(() => {
         setIsSaving(false);
-        alert("ドキュメントを提出しました");
+        alert(`ドキュメントを提出しました: ${autoTitle}`);
         router.push("/dashboard/documents");
       }, 1000);
     } catch (error) {
       console.error("提出エラー:", error);
       setIsSaving(false);
     }
-  }, [editor, documentTitle, setIsDirty, setIsSaving, router]);
+  }, [editor, setIsDirty, setIsSaving, router]);
 
   const handleInsertAIText = useCallback((text: string) => {
     const lastBlock = editor.blocks[editor.blocks.length - 1];

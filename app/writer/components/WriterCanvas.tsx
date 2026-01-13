@@ -10,6 +10,16 @@ interface WriterCanvasProps {
   selectedBlock: any;
   onUpdateBlock: (id: string, updated: any) => void;
   onSelectBlock: (id: string | null) => void;
+  showGrid: boolean;
+  setShowGrid: (show: boolean) => void;
+  gridSize: number;
+  setGridSize: (size: number) => void;
+  snapMode: boolean;
+  setSnapMode: (mode: boolean) => void;
+  zoom: number;
+  setZoom: (zoom: number) => void;
+  paper: string;
+  orientation: string;
 }
 
 /**
@@ -21,6 +31,16 @@ export default function WriterCanvas({
   selectedBlock,
   onUpdateBlock,
   onSelectBlock,
+  showGrid,
+  setShowGrid,
+  gridSize,
+  setGridSize,
+  snapMode,
+  setSnapMode,
+  zoom,
+  setZoom,
+  paper,
+  orientation,
 }: WriterCanvasProps) {
   // グローバルクリックリスナーでキャンバス外クリックも選択解除
   useEffect(() => {
@@ -45,55 +65,166 @@ export default function WriterCanvas({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onSelectBlock]);
 
-  return (
-    <div className="flex-1 overflow-auto bg-gray-100 p-8">
-      <div
-        className="bg-white shadow-lg mx-auto"
-        style={{
-          width: "794px",
-          minHeight: "1123px",
-          position: "relative",
-        }}
-      >
-        {blocks.map((block: any) => {
-          const isSelected = selectedBlock?.id === block.id;
-          const isTextBlock = ["text", "titlePlaceholder"].includes(block.type);
-          const isPlaceholder = ["approvalStampPlaceholder", "managementNumberPlaceholder"].includes(block.type);
+  const sizes: any = {
+    A4: { w: 794, h: 1123 },
+    A3: { w: 1123, h: 1587 },
+  };
 
-          return isTextBlock ? (
-            <TextBlock
-              key={block.id}
-              block={block}
-              isSelected={isSelected}
-              selectedBlock={selectedBlock}
-              updateBlock={onUpdateBlock}
-              selectBlock={onSelectBlock}
-              snap={(value: number) => Math.round(value)}
-              isReadOnly={true}
-            />
-          ) : isPlaceholder ? (
-            <PlaceholderBlock
-              key={block.id}
-              block={block}
-              isSelected={isSelected}
-              updateBlock={onUpdateBlock}
-              selectBlock={onSelectBlock}
-              snap={(value: number) => Math.round(value)}
-              isReadOnly={true}
-            />
-          ) : (
-            <ShapeBlock
-              key={block.id}
-              block={block}
-              blocks={blocks}
-              isSelected={isSelected}
-              updateBlock={onUpdateBlock}
-              selectBlock={onSelectBlock}
-              snap={(value: number) => Math.round(value)}
-              isReadOnly={true}
-            />
-          );
-        })}
+  // paperとorientationのデフォルト値を確保
+  const currentPaper = paper || "A4";
+  const currentOrientation = orientation || "portrait";
+  
+  const base = sizes[currentPaper] || sizes["A4"];
+  const width = currentOrientation === "portrait" ? base.w : base.h;
+  const height = currentOrientation === "portrait" ? base.h : base.w;
+
+  // デバッグ用（値の変更を確認）
+  useEffect(() => {
+    console.log("Writer Canvas - Paper:", currentPaper, "Orientation:", currentOrientation, "Width:", width, "Height:", height);
+  }, [currentPaper, currentOrientation, width, height]);
+
+  // スナップ関数（Writerでは移動不可なので実質使われない）
+  const snap = (value: number, size: number = gridSize): number => {
+    const rounded = Math.round(value);
+    if (!snapMode) return rounded;
+    return Math.round(rounded / size) * size;
+  };
+
+  const offsetX = Math.round((width / 2) % gridSize);
+  const offsetY = Math.round((height / 2) % gridSize);
+
+  return (
+    <div className="flex flex-col flex-1 bg-gray-50 overflow-hidden">
+      {/* 設定パネル */}
+      <div 
+        className="flex gap-4 m-4 mb-0 items-center bg-white p-3 shadow-sm rounded"
+        data-ignore-deselect="true"
+      >
+        <div className="text-sm text-gray-600">
+          用紙: {currentPaper} {currentOrientation === "portrait" ? "縦" : "横"}
+        </div>
+
+        <div className="border-l h-6 mx-2"></div>
+
+        <label className="flex items-center gap-2 cursor-pointer text-sm">
+          <input
+            type="checkbox"
+            checked={showGrid}
+            onChange={() => setShowGrid(!showGrid)}
+          />
+          グリッド
+        </label>
+
+        <select
+          value={gridSize}
+          onChange={(e) => setGridSize(Number(e.target.value))}
+          className="border p-2 rounded"
+        >
+          <option value={10}>10px</option>
+          <option value={20}>20px</option>
+          <option value={40}>40px</option>
+          <option value={80}>80px</option>
+        </select>
+
+        <label className="flex items-center gap-2 cursor-pointer text-sm">
+          <input
+            type="checkbox"
+            checked={snapMode}
+            onChange={() => setSnapMode(!snapMode)}
+          />
+          スナップ
+        </label>
+
+        <select
+          value={zoom}
+          onChange={(e) => setZoom(Number(e.target.value))}
+          className="border p-2 rounded"
+        >
+          <option value={0.5}>50%</option>
+          <option value={0.75}>75%</option>
+          <option value={1}>100%</option>
+          <option value={1.5}>150%</option>
+          <option value={2}>200%</option>
+        </select>
+      </div>
+
+      {/* キャンバス */}
+      <div className="flex-1 overflow-auto">
+        <div 
+          style={{ 
+            padding: "50px",
+            width: `${width * zoom + 100}px`,
+            height: `${height * zoom + 100}px`,
+            margin: "0 auto"
+          }}
+        >
+          <div
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "top left",
+            }}
+          >
+            <div
+              className="relative bg-white shadow-lg"
+              style={{
+                width: `${width}px`,
+                height: `${height}px`,
+                border: "1px solid #ccc",
+                backgroundImage: showGrid
+                  ? `linear-gradient(#e5e5e5 1px, transparent 1px),
+                     linear-gradient(90deg, #e5e5e5 1px, transparent 1px)`
+                  : "none",
+                backgroundSize: showGrid
+                  ? `${Math.round(gridSize)}px ${Math.round(gridSize)}px`
+                  : "none",
+                backgroundPosition: showGrid
+                  ? `${offsetX}px ${offsetY}px`
+                  : "none",
+                backgroundAttachment: "local",
+              }}
+            >
+              {blocks.map((block: any) => {
+                const isSelected = selectedBlock?.id === block.id;
+                const isTextBlock = ["text", "titlePlaceholder"].includes(block.type);
+                const isPlaceholder = ["approvalStampPlaceholder", "managementNumberPlaceholder"].includes(block.type);
+
+                return isTextBlock ? (
+                  <TextBlock
+                    key={block.id}
+                    block={block}
+                    isSelected={isSelected}
+                    selectedBlock={selectedBlock}
+                    updateBlock={onUpdateBlock}
+                    selectBlock={onSelectBlock}
+                    snap={snap}
+                    isReadOnly={true}
+                  />
+                ) : isPlaceholder ? (
+                  <PlaceholderBlock
+                    key={block.id}
+                    block={block}
+                    isSelected={isSelected}
+                    updateBlock={onUpdateBlock}
+                    selectBlock={onSelectBlock}
+                    snap={snap}
+                    isReadOnly={true}
+                  />
+                ) : (
+                  <ShapeBlock
+                    key={block.id}
+                    block={block}
+                    blocks={blocks}
+                    isSelected={isSelected}
+                    updateBlock={onUpdateBlock}
+                    selectBlock={onSelectBlock}
+                    snap={snap}
+                    isReadOnly={true}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

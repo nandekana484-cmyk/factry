@@ -28,6 +28,10 @@ export const useWriterEditor = () => {
   const [selectedBlock, setSelectedBlock] = useState<any | null>(null);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
 
+  // 用紙サイズ（テンプレートから読み込む）
+  const [paper, setPaper] = useState("A4");
+  const [orientation, setOrientation] = useState("portrait");
+
   // ブロック追加
   const addBlock = (type: string) => {
     const base = {
@@ -224,7 +228,18 @@ export const useWriterEditor = () => {
     const templates = JSON.parse(localStorage.getItem("templates") || "[]");
     const template = templates.find((t: any) => t.id === templateId);
     
+    console.log("Loading template:", template);
+    
     if (template) {
+      // 用紙サイズと向きを読み込む
+      const templatePaper = template.paper || "A4";
+      const templateOrientation = template.orientation || "portrait";
+      
+      console.log("Template paper:", templatePaper, "orientation:", templateOrientation);
+      
+      setPaper(templatePaper);
+      setOrientation(templateOrientation);
+      
       // テンプレートのブロックをディープコピーして、グリッドに揃える
       const gridSize = 20; // 固定グリッドサイズ
       const templateBlocks = template.blocks.map((b: any) => ({
@@ -315,5 +330,9 @@ export const useWriterEditor = () => {
     saveDraft,
     submitDocument,
     loadDraft,
+
+    // 用紙サイズ
+    paper,
+    orientation,
   };
 };

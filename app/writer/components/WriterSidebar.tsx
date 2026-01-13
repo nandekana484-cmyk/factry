@@ -1,8 +1,6 @@
 "use client";
 
 interface WriterSidebarProps {
-  documentTitle: string;
-  setDocumentTitle: (title: string) => void;
   isSaving: boolean;
   onGoBack: () => void;
   onSaveDraft: () => void;
@@ -20,8 +18,6 @@ interface WriterSidebarProps {
  * Writer左サイドバーの UI を担当
  */
 export default function WriterSidebar({
-  documentTitle,
-  setDocumentTitle,
   isSaving,
   onGoBack,
   onSaveDraft,
@@ -34,8 +30,14 @@ export default function WriterSidebar({
   onLoadDraft,
 }: WriterSidebarProps) {
   return (
-    <div 
-      className="w-64 border-r bg-gray-50 overflow-y-auto p-4"
+    <div
+      className="border-r bg-gray-50 overflow-y-auto p-4"
+      style={{
+        width: "260px",
+        flex: "0 0 260px",
+        minWidth: "260px",
+        maxWidth: "260px"
+      }}
       data-ignore-deselect="true"
     >
       <button
@@ -44,16 +46,6 @@ export default function WriterSidebar({
       >
         ← 戻る
       </button>
-
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="文書タイトル"
-          value={documentTitle}
-          onChange={(e) => setDocumentTitle(e.target.value)}
-          className="w-full border rounded px-3 py-2"
-        />
-      </div>
 
       <button
         onClick={onSaveDraft}

@@ -20,7 +20,7 @@ export default function TemplateCanvas({
   onNewTemplate,
 }: TemplateCanvasProps) {
   return (
-    <div className="flex-1 flex flex-col bg-gray-50">
+    <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
       <EditorContainer
         blocks={editor.blocks}
         selectedBlock={editor.selectedBlock}

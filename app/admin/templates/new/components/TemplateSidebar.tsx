@@ -14,7 +14,13 @@ interface LeftSidebarProps {
 export function LeftSidebar({ editor, setIsDirty }: LeftSidebarProps) {
   return (
     <div 
-      className="w-64 border-r overflow-y-auto"
+      className="border-r overflow-y-auto"
+      style={{
+        width: "260px",
+        flex: "0 0 260px",
+        minWidth: "260px",
+        maxWidth: "260px"
+      }}
       data-ignore-deselect="true"
     >
       <FieldPalette

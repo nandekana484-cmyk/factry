@@ -21,9 +21,14 @@ export default function WriterPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
-  const [documentTitle, setDocumentTitle] = useState("");
   const [templates, setTemplates] = useState<any[]>([]);
   const [draftDocuments, setDraftDocuments] = useState<any[]>([]);
+  
+  // 編集補助機能のstate
+  const [showGrid, setShowGrid] = useState(true);
+  const [gridSize, setGridSize] = useState(20);
+  const [snapMode, setSnapMode] = useState(false);
+  const [zoom, setZoom] = useState(1);
 
   // クライアント側でのみlocalStorageからデータを読み込む
   useEffect(() => {
@@ -46,11 +51,11 @@ export default function WriterPage() {
   useWriterDeleteKey(editor.selectedBlock, editor.deleteBlock, setIsDirty);
 
   // アクションハンドラー
-  const actions = useWriterActions(editor, documentTitle, setIsDirty, setIsSaving);
+  const actions = useWriterActions(editor, setIsDirty, setIsSaving);
 
   // テンプレート・下書き読み込みハンドラー
   const handleLoadTemplate = useTemplateLoadHandler(isDirty, editor.loadTemplate, setIsDirty);
-  const handleLoadDraft = useDraftLoadHandler(isDirty, editor.loadDraft, setIsDirty, setDocumentTitle);
+  const handleLoadDraft = useDraftLoadHandler(isDirty, editor.loadDraft, setIsDirty);
 
   // 戻るボタンハンドラー
   const handleGoBack = () => {
@@ -68,11 +73,9 @@ export default function WriterPage() {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen overflow-hidden">
       {/* 左サイドバー */}
       <WriterSidebar
-        documentTitle={documentTitle}
-        setDocumentTitle={setDocumentTitle}
         isSaving={isSaving}
         onGoBack={handleGoBack}
         onSaveDraft={actions.handleSaveDraft}
@@ -86,7 +89,7 @@ export default function WriterPage() {
       />
 
       {/* 中央エディタエリア */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* ページタブ */}
         <WriterPageTabs
           pages={editor.pages}
@@ -100,11 +103,29 @@ export default function WriterPage() {
           selectedBlock={editor.selectedBlock}
           onUpdateBlock={handleUpdateBlock}
           onSelectBlock={editor.selectBlock}
+          showGrid={showGrid}
+          setShowGrid={setShowGrid}
+          gridSize={gridSize}
+          setGridSize={setGridSize}
+          snapMode={snapMode}
+          setSnapMode={setSnapMode}
+          zoom={zoom}
+          setZoom={setZoom}
+          paper={editor.paper}
+          orientation={editor.orientation}
         />
       </div>
 
       {/* 右：AIチャット */}
-      <div className="w-96 border-l">
+      <div 
+        className="border-l"
+        style={{
+          width: "384px",
+          flex: "0 0 384px",
+          minWidth: "384px",
+          maxWidth: "384px"
+        }}
+      >
         <AIChat
           blocks={editor.blocks}
           onInsertText={actions.handleInsertAIText}

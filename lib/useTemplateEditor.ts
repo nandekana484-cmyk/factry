@@ -257,6 +257,8 @@ export const useTemplateEditor = () => {
       name,
       createdAt: Date.now(),
       blocks: JSON.parse(JSON.stringify(blocks)), // ディープコピー
+      paper,
+      orientation,
     };
 
     const existing = JSON.parse(localStorage.getItem("templates") || "[]");
@@ -279,8 +281,8 @@ export const useTemplateEditor = () => {
       t.id === selectedTemplateId
         ? {
             ...t,
-            blocks: JSON.parse(JSON.stringify(blocks)),
-            updatedAt: Date.now(),
+            blocks: JSON.parse(JSON.stringify(blocks)),            paper,
+            orientation,            updatedAt: Date.now(),
           }
         : t
     );
@@ -297,6 +299,8 @@ export const useTemplateEditor = () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       blocks: JSON.parse(JSON.stringify(blocks)),
+      paper,
+      orientation,
     };
 
     const existing = JSON.parse(localStorage.getItem("templates") || "[]");
@@ -327,6 +331,10 @@ export const useTemplateEditor = () => {
     const templates = getTemplates();
     const template = templates.find((t: any) => t.id === templateId);
     if (template) {
+      // 用紙サイズと向きを読み込む
+      setPaper(template.paper || "A4");
+      setOrientation(template.orientation || "portrait");
+      
       // 読み込み時にzIndexと位置・サイズをグリッドに揃える
       const blocksWithZIndex = template.blocks.map((b: any) => {
         const isTextLike = b.type === "text" || b.type === "titlePlaceholder";

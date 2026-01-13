@@ -40,15 +40,13 @@ export const useTemplateLoadHandler = (
 export const useDraftLoadHandler = (
   isDirty: boolean,
   loadDraft: (draft: any) => any,
-  setIsDirty: (dirty: boolean) => void,
-  setDocumentTitle: (title: string) => void
+  setIsDirty: (dirty: boolean) => void
 ) => {
   return (draft: any) => {
     if (isDirty && !confirm("編集内容が失われますが、下書きを読み込みますか？")) {
       return;
     }
     loadDraft(draft);
-    setDocumentTitle(draft.title || "");
     setIsDirty(false);
   };
 };

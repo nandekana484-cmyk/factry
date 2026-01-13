@@ -78,7 +78,7 @@ export default function TemplateCreatePage() {
   });
 
   return (
-    <div className="flex h-screen gap-0">
+    <div className="flex h-screen gap-0 overflow-hidden">
       {/* 左サイドバー：FieldPalette */}
       <LeftSidebar editor={editor} setIsDirty={setIsDirty} />
 

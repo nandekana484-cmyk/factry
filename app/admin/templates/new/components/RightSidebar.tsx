@@ -24,7 +24,13 @@ export default function RightSidebar({
 }: RightSidebarProps) {
   return (
     <div 
-      className="w-80 border-l flex flex-col"
+      className="border-l flex flex-col"
+      style={{
+        width: "320px",
+        flex: "0 0 320px",
+        minWidth: "320px",
+        maxWidth: "320px"
+      }}
       data-ignore-deselect="true"
     >
       {/* 上段：テンプレート一覧（小さく） */}
