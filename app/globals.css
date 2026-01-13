@@ -70,6 +70,10 @@
 
 /* 印刷時にテキストブロックの編集用枠線を非表示 */
 @media print {
+  .editor-text-frame {
+    display: none !important;
+  }
+
   .editor-text-block {
     border: none !important;
   }

@@ -12,7 +12,9 @@ export default function TextBlock({
   snap,
   isReadOnly = false,
 }: any) {
-  const isEditable = block.editable !== false && !isReadOnly;
+  // titlePlaceholder は Writer ページ（isReadOnly=true）でも編集可能
+  const isTitleEditable = block.type === "titlePlaceholder" && isReadOnly;
+  const isEditable = block.editable !== false && (!isReadOnly || isTitleEditable);
 
   return (
     <Rnd
@@ -27,11 +29,11 @@ export default function TextBlock({
         y: Math.round(block.y),
       }}
       bounds="parent"
-      disableDragging={isReadOnly || !isEditable || !isSelected || block.isEditing}
+      disableDragging={isReadOnly || !isSelected || block.isEditing}
       enableResizing={
         isReadOnly
           ? false
-          : isEditable && isSelected && !block.isEditing
+          : isSelected && !block.isEditing
           ? {
               top: true,
               right: true,
@@ -45,20 +47,33 @@ export default function TextBlock({
           : false
       }
       dragHandleClassName="editor-text-handle"
-      onClick={() => selectBlock(block.id)}
+      style={{
+        zIndex: block.zIndex || 1500,
+        boxSizing: "border-box",
+      }}
+      onClick={(e: any) => {
+        // titlePlaceholder は isReadOnly でもクリック可能（テキスト編集のため）
+        if (isReadOnly && block.type !== "titlePlaceholder") return;
+        e.stopPropagation();
+        selectBlock(block.id);
+      }}
       onDragStop={(e, d) => {
-        const newX = snap(Math.round(d.x));
-        const newY = snap(Math.round(d.y));
+        if (isReadOnly) return;
+        // グリッドサイズに完全にスナップ
+        const newX = snap(d.x);
+        const newY = snap(d.y);
         updateBlock(block.id, { x: newX, y: newY });
       }}
       onResizeStop={(e, dir, ref, delta, pos) => {
+        if (isReadOnly) return;
         const parsedWidth = parseFloat(ref.style.width) || block.width;
         const parsedHeight = parseFloat(ref.style.height) || block.height;
 
-        const newWidth = snap(Math.round(parsedWidth));
-        const newHeight = snap(Math.round(parsedHeight));
-        const newX = snap(Math.round(pos.x));
-        const newY = snap(Math.round(pos.y));
+        // サイズと位置を完全にグリッドスナップ
+        const newWidth = snap(parsedWidth);
+        const newHeight = snap(parsedHeight);
+        const newX = snap(pos.x);
+        const newY = snap(pos.y);
 
         updateBlock(block.id, {
           width: newWidth,
@@ -68,6 +83,28 @@ export default function TextBlock({
         });
       }}
     >
+      {/* 編集用枠線ガイド（印刷時は非表示） */}
+      <div
+        className="editor-text-frame"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          outline: isReadOnly 
+            ? "none" 
+            : (isSelected 
+              ? "3px solid #4A90E2" 
+              : "1px dashed #cccccc"),
+          outlineOffset: "0px",
+          boxSizing: "border-box",
+          pointerEvents: "none",
+          zIndex: 100,
+        }}
+      />
+
+      {/* ドラッグハンドル（透明） */}
       <div
         className="editor-text-handle"
         style={{
@@ -76,7 +113,6 @@ export default function TextBlock({
           left: 0,
           right: 0,
           bottom: 0,
-          border: isSelected ? "2px solid #4A90E2" : "2px solid transparent",
           boxSizing: "border-box",
           cursor: isSelected && !block.isEditing ? "move" : "default",
           zIndex: 200,
@@ -142,7 +178,7 @@ export default function TextBlock({
         {/* --- タイトルプレースホルダー --- */}
         {block.type === "titlePlaceholder" && (
           <div
-            contentEditable={isEditable}
+            contentEditable={isTitleEditable || isEditable}
             suppressContentEditableWarning
             className="w-full h-full"
             style={{
@@ -163,10 +199,11 @@ export default function TextBlock({
                     ? "flex-end"
                     : "flex-start",
               padding: "8px",
-              pointerEvents: block.isEditing ? "auto" : "none",
+              pointerEvents: (isTitleEditable || isEditable) ? (block.isEditing ? "auto" : "auto") : "none",
+              cursor: (isTitleEditable || isEditable) ? "text" : "default",
             }}
             onFocus={() => {
-              if (isEditable) {
+              if (isTitleEditable || isEditable) {
                 updateBlock(block.id, { isEditing: true });
               }
             }}

@@ -3,13 +3,37 @@
 import { useState, useCallback } from "react";
 import { nanoid } from "nanoid";
 
-export const useEditor = () => {
+/**
+ * useTemplateEditor - テンプレート編集専用フック
+ * テンプレートの作成・編集・保存に必要な機能を提供
+ */
+export const useTemplateEditor = () => {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<any | null>(null);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [maxZIndex, setMaxZIndex] = useState(1000);
+
+  // UI状態管理
+  const [paper, setPaper] = useState("A4");
+  const [orientation, setOrientation] = useState("portrait");
+  const [showGrid, setShowGrid] = useState(true);
+  const [zoom, setZoom] = useState(1);
+  const [gridSize, setGridSize] = useState(20);
+  const [snapMode, setSnapMode] = useState(true);
+
+  // グリッドスナップ関数
+  const snapToGrid = (value: number): number => {
+    if (!snapMode) return Math.round(value);
+    return Math.round(value / gridSize) * gridSize;
+  };
 
   const addBlock = (type: string, role?: string) => {
+    // 初期z-indexを決定（テキスト系は高く、図形系は低く）
+    const isTextLike = type === "text" || type === "titlePlaceholder";
+    const isPlaceholder = role === "approval" || role === "management";
+    const initialZIndex = isTextLike || isPlaceholder ? 1500 : 100;
+
     const base = {
       id: nanoid(),
       type,
@@ -19,6 +43,7 @@ export const useEditor = () => {
       height: 80,
       isEditing: false,
       rotate: 0,
+      zIndex: initialZIndex,
     };
 
     let block: any = {};
@@ -85,7 +110,7 @@ export const useEditor = () => {
         const cols = 3;
         block = {
           ...base,
-          width: 240, // 初期サイズ調整
+          width: 240,
           height: 90,
           rows,
           cols,
@@ -302,12 +327,32 @@ export const useEditor = () => {
     const templates = getTemplates();
     const template = templates.find((t: any) => t.id === templateId);
     if (template) {
-      setBlocks(JSON.parse(JSON.stringify(template.blocks)));
+      // 読み込み時にzIndexと位置・サイズをグリッドに揃える
+      const blocksWithZIndex = template.blocks.map((b: any) => {
+        const isTextLike = b.type === "text" || b.type === "titlePlaceholder";
+        const isPlaceholder = b.role === "approval" || b.role === "management";
+        
+        // グリッドスナップ（snapMode無視、常にグリッドに揃える）
+        const snappedX = Math.round(b.x / gridSize) * gridSize;
+        const snappedY = Math.round(b.y / gridSize) * gridSize;
+        const snappedWidth = Math.round(b.width / gridSize) * gridSize;
+        const snappedHeight = Math.round(b.height / gridSize) * gridSize;
+        
+        return {
+          ...b,
+          x: snappedX,
+          y: snappedY,
+          width: snappedWidth,
+          height: snappedHeight,
+          zIndex: b.zIndex || (isTextLike || isPlaceholder ? 1500 : 100),
+        };
+      });
+      setBlocks(JSON.parse(JSON.stringify(blocksWithZIndex)));
       setSelectedBlock(null);
       setSelectedCell(null);
       setSelectedTemplateId(templateId); // 選択中のテンプレートIDをセット
     }
-  }, []);
+  }, [gridSize]);
 
   // テンプレート削除
   const deleteTemplate = (templateId: string) => {
@@ -317,6 +362,7 @@ export const useEditor = () => {
   };
 
   return {
+    // ブロック管理
     blocks,
     addBlock,
     addTableBlock,
@@ -326,6 +372,8 @@ export const useEditor = () => {
     deleteBlock,
     selectedCell,
     setSelectedCell,
+
+    // テンプレート管理
     saveTemplate,
     saveTemplateOverwrite,
     saveTemplateAsNew,
@@ -333,10 +381,19 @@ export const useEditor = () => {
     deleteTemplate,
     selectedTemplateId,
     newTemplate,
-    setAllBlocks: (newBlocks: any[]) => {
-      setBlocks(newBlocks);
-      setSelectedBlock(null);
-      setSelectedCell(null);
-    },
+
+    // UI状態管理
+    paper,
+    setPaper,
+    orientation,
+    setOrientation,
+    showGrid,
+    setShowGrid,
+    zoom,
+    setZoom,
+    gridSize,
+    setGridSize,
+    snapMode,
+    setSnapMode,
   };
 };

@@ -2,207 +2,133 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEditor } from "@/lib/useEditor";
-import { usePageManager } from "@/lib/usePageManager";
-import { useTemplateManager } from "@/lib/useTemplateManager";
-import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
-import { parseTableFromHTML } from "@/lib/tableParser";
-import WriterLayout from "@/components/writer/WriterLayout";
-import WriterSidebar from "@/components/writer/WriterSidebar";
-import PageTabs from "@/components/writer/PageTabs";
-import EditorArea from "@/components/writer/EditorArea";
-import AIChatArea from "@/components/writer/AIChatArea";
-import UnsavedDialog from "@/components/writer/UnsavedDialog";
+import { useWriterEditor } from "@/lib/useWriterEditor";
+import { useWriterPaste } from "./hooks/useWriterPaste";
+import { useWriterDeleteKey } from "./hooks/useWriterDeleteKey";
+import { useWriterLoader, useTemplateLoadHandler, useDraftLoadHandler } from "./hooks/useWriterLoader";
+import { useWriterActions } from "./hooks/useWriterActions";
+import WriterSidebar from "./components/WriterSidebar";
+import WriterPageTabs from "./components/WriterPageTabs";
+import WriterCanvas from "./components/WriterCanvas";
+import WriterUnsavedDialog from "./components/WriterUnsavedDialog";
+import AIChat from "@/components/AIChat";
 
 export default function WriterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const editor = useWriterEditor();
+  
   const [isSaving, setIsSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [documentTitle, setDocumentTitle] = useState("");
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [draftDocuments, setDraftDocuments] = useState<any[]>([]);
 
-  // カスタムフック
-  const editor = useEditor();
-  const page = usePageManager();
-  const templateManager = useTemplateManager();
-  const guard = useUnsavedGuard();
+  // クライアント側でのみlocalStorageからデータを読み込む
+  useEffect(() => {
+    const loadedTemplates = JSON.parse(localStorage.getItem("templates") || "[]");
+    setTemplates(loadedTemplates);
+
+    const documents = JSON.parse(localStorage.getItem("documents") || "[]");
+    const drafts = documents.filter((doc: any) => doc.status === "draft");
+    setDraftDocuments(drafts);
+  }, []);
 
   // URLパラメータからテンプレートIDを取得して読み込む
-  useEffect(() => {
-    const id = searchParams.get("templateId");
-    if (id) {
-      editor.loadTemplate(id);
-      page.resetToSinglePage();
-    } else {
-      editor.newTemplate();
-    }
-  }, [searchParams]);
+  const templateId = searchParams.get("templateId");
+  useWriterLoader(templateId, editor.loadTemplate);
 
-  // blocks が更新されたら currentPage のページに反映
-  useEffect(() => {
-    page.updateCurrentPageBlocks(editor.blocks);
-  }, [editor.blocks]);
+  // ペースト処理
+  useWriterPaste(editor.blocks, editor.addTableBlock, setIsDirty);
 
-  // ペースト処理（HTMLテーブル検出）
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
+  // Deleteキー処理
+  useWriterDeleteKey(editor.selectedBlock, editor.deleteBlock, setIsDirty);
 
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type === "text/html") {
-          const html = e.clipboardData?.getData("text/html");
-          if (html) {
-            const parsedTable = parseTableFromHTML(html);
-            if (parsedTable) {
-              e.preventDefault();
-              const lastBlock = editor.blocks[editor.blocks.length - 1];
-              const newY = lastBlock ? lastBlock.y + lastBlock.height + 20 : 100;
-              editor.addTableBlock(parsedTable.cells, 100, newY);
-              guard.markDirty();
-              return;
-            }
-          }
-        }
-      }
-    };
+  // アクションハンドラー
+  const actions = useWriterActions(editor, documentTitle, setIsDirty, setIsSaving);
 
-    document.addEventListener("paste", handlePaste as EventListener);
-    return () => {
-      document.removeEventListener("paste", handlePaste as EventListener);
-    };
-  }, [editor.blocks, editor.addTableBlock, guard]);
+  // テンプレート・下書き読み込みハンドラー
+  const handleLoadTemplate = useTemplateLoadHandler(isDirty, editor.loadTemplate, setIsDirty);
+  const handleLoadDraft = useDraftLoadHandler(isDirty, editor.loadDraft, setIsDirty, setDocumentTitle);
 
-  // ハンドラー関数
-  const handleSubmitDocument = async () => {
-    setIsSaving(true);
-    try {
-      // ドキュメント提出処理（後で実装）
-      setTimeout(() => {
-        guard.markClean();
-        setIsSaving(false);
-        alert("ドキュメントを提出しました");
-        router.push("/dashboard/documents");
-      }, 1000);
-    } catch (error) {
-      console.error("提出エラー:", error);
-      setIsSaving(false);
-    }
-  };
-
+  // 戻るボタンハンドラー
   const handleGoBack = () => {
-    guard.guardAction(() => router.push("/dashboard/documents"));
-  };
-
-  const handleInsertAIText = (text: string) => {
-    const lastBlock = editor.blocks[editor.blocks.length - 1];
-    const newY = lastBlock ? lastBlock.y + lastBlock.height + 20 : 100;
-    editor.addBlock("text");
-    const newBlocks = [...editor.blocks];
-    if (newBlocks.length > 0) {
-      const lastBlockId = newBlocks[newBlocks.length - 1].id;
-      editor.updateBlock(lastBlockId, { label: text, y: newY });
-      guard.markDirty();
+    if (isDirty) {
+      setShowUnsavedDialog(true);
+    } else {
+      router.push("/dashboard/documents");
     }
   };
 
-  const handleInsertAITable = (cells: any[][]) => {
-    const lastBlock = editor.blocks[editor.blocks.length - 1];
-    const newY = lastBlock ? lastBlock.y + lastBlock.height + 20 : 100;
-    editor.addTableBlock(cells, 100, newY);
-    guard.markDirty();
-  };
-
-  const handleAddTextBlock = () => {
-    editor.addBlock("text");
-    guard.markDirty();
-  };
-
-  const handleAddPage = () => {
-    const newPageNumber = page.addPage();
-    page.switchPage(newPageNumber);
-    editor.setAllBlocks([]);
-    guard.markDirty();
-  };
-
-  const handleSwitchPage = (pageNumber: number) => {
-    const blocks = page.switchPage(pageNumber);
-    if (blocks !== null) {
-      editor.setAllBlocks(blocks);
-    }
-  };
-
-  const handleLoadTemplate = (templateId: string) => {
-    if (guard.confirmLoad("編集内容が失われますが、テンプレートを読み込みますか？")) {
-      editor.loadTemplate(templateId);
-      guard.markClean();
-    }
-  };
-
-  const handleLoadDraft = (draft: any) => {
-    if (guard.confirmLoad("編集内容が失われますが、下書きを読み込みますか？")) {
-      if (draft.pages) {
-        const blocks = page.loadPages(draft.pages);
-        editor.setAllBlocks(blocks);
-      } else {
-        page.resetToSinglePage();
-        editor.setAllBlocks(draft.blocks || []);
-      }
-      guard.markClean();
-    }
+  // ブロック更新ハンドラー
+  const handleUpdateBlock = (id: string, updated: any) => {
+    editor.updateBlock(id, updated);
+    setIsDirty(true);
   };
 
   return (
-    <WriterLayout
-      sidebar={
-        <WriterSidebar
-          templates={templateManager.templates}
-          draftDocuments={templateManager.draftDocuments}
-          isSaving={isSaving}
-          onGoBack={handleGoBack}
-          onLoadTemplate={handleLoadTemplate}
-          onLoadDraft={handleLoadDraft}
-          onAddTextBlock={handleAddTextBlock}
-          onAddPage={handleAddPage}
-          currentPage={page.currentPage}
-          totalPages={page.pages.length}
+    <div className="flex h-screen">
+      {/* 左サイドバー */}
+      <WriterSidebar
+        documentTitle={documentTitle}
+        setDocumentTitle={setDocumentTitle}
+        isSaving={isSaving}
+        onGoBack={handleGoBack}
+        onSaveDraft={actions.handleSaveDraft}
+        onSubmitDocument={actions.handleSubmitDocument}
+        onAddTextBlock={actions.handleAddTextBlock}
+        onAddPage={actions.handleAddPage}
+        templates={templates}
+        draftDocuments={draftDocuments}
+        onLoadTemplate={handleLoadTemplate}
+        onLoadDraft={handleLoadDraft}
+      />
+
+      {/* 中央エディタエリア */}
+      <div className="flex-1 flex flex-col">
+        {/* ページタブ */}
+        <WriterPageTabs
+          pages={editor.pages}
+          currentPage={editor.currentPage}
+          onSwitchPage={actions.handleSwitchPage}
         />
-      }
-      tabs={
-        <PageTabs
-          pages={page.pages}
-          currentPage={page.currentPage}
-          onSwitchPage={handleSwitchPage}
-        />
-      }
-      editor={
-        <EditorArea
+
+        {/* エディタエリア */}
+        <WriterCanvas
           blocks={editor.blocks}
           selectedBlock={editor.selectedBlock}
-          selectedCell={editor.selectedCell}
-          onUpdateBlock={(id: string, updated: any) => {
-            editor.updateBlock(id, updated);
-            guard.markDirty();
-          }}
+          onUpdateBlock={handleUpdateBlock}
           onSelectBlock={editor.selectBlock}
-          onDeleteBlock={editor.deleteBlock}
-          onSetSelectedCell={editor.setSelectedCell}
         />
-      }
-      ai={
-        <AIChatArea
+      </div>
+
+      {/* 右：AIチャット */}
+      <div className="w-96 border-l">
+        <AIChat
           blocks={editor.blocks}
+          onInsertText={actions.handleInsertAIText}
+          onInsertTable={actions.handleInsertAITable}
+          onSubmit={actions.handleSubmitDocument}
           isSaving={isSaving}
-          onInsertText={handleInsertAIText}
-          onInsertTable={handleInsertAITable}
-          onSubmit={handleSubmitDocument}
         />
-      }
-      unsavedDialog={
-        <UnsavedDialog
-          show={guard.showUnsavedDialog}
-          onDiscard={guard.discardAndProceed}
-          onSave={() => guard.saveAndProceed(handleSubmitDocument)}
-        />
-      }
-    />
+      </div>
+
+      {/* 未保存ダイアログ */}
+      <WriterUnsavedDialog
+        show={showUnsavedDialog}
+        onDiscard={() => {
+          setShowUnsavedDialog(false);
+          setIsDirty(false);
+          router.push("/dashboard/documents");
+        }}
+        onCancel={() => setShowUnsavedDialog(false)}
+        onSave={() => {
+          actions.handleSaveDraft();
+          setShowUnsavedDialog(false);
+          router.push("/dashboard/documents");
+        }}
+      />
+    </div>
   );
 }

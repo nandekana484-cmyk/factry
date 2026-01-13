@@ -8,8 +8,9 @@ export default function PlaceholderBlock({
   updateBlock,
   selectBlock,
   snap,
+  isReadOnly = false,
 }: any) {
-  const isEditable = block.editable !== false;
+  const isEditable = block.editable !== false && !isReadOnly;
 
   return (
     <Rnd
@@ -24,27 +25,30 @@ export default function PlaceholderBlock({
         y: Math.round(block.y),
       }}
       bounds="parent"
-      disableDragging={!isEditable || !isSelected || block.isEditing}
-      enableResizing={isEditable && isSelected && !block.isEditing}
-      dragHandleClassName="placeholder-handle"
-      style={{
-        zIndex: isSelected ? 1000 : 1,
+      disableDragging={isReadOnly}
+      enableResizing={isReadOnly ? false : isSelected}
+      onMouseDown={(e) => {
+        if (isReadOnly) return;
+        e.stopPropagation();
+        selectBlock(block.id);
       }}
-      onClick={() => selectBlock(block.id)}
-      onDragStart={() => selectBlock(block.id)}
       onDragStop={(e, d) => {
-        const newX = snap(Math.round(d.x));
-        const newY = snap(Math.round(d.y));
+        if (isReadOnly) return;
+        // グリッドサイズに完全にスナップ
+        const newX = snap(d.x);
+        const newY = snap(d.y);
         updateBlock(block.id, { x: newX, y: newY });
       }}
       onResizeStop={(e, dir, ref, delta, pos) => {
+        if (isReadOnly) return;
         const parsedWidth = parseFloat(ref.style.width) || block.width;
         const parsedHeight = parseFloat(ref.style.height) || block.height;
 
-        const newWidth = snap(Math.round(parsedWidth));
-        const newHeight = snap(Math.round(parsedHeight));
-        const newX = snap(Math.round(pos.x));
-        const newY = snap(Math.round(pos.y));
+        // サイズと位置を完全にグリッドスナップ
+        const newWidth = snap(parsedWidth);
+        const newHeight = snap(parsedHeight);
+        const newX = snap(pos.x);
+        const newY = snap(pos.y);
 
         updateBlock(block.id, {
           width: newWidth,
@@ -53,30 +57,20 @@ export default function PlaceholderBlock({
           y: newY,
         });
       }}
+      style={{
+        outline: isReadOnly ? "none" : (isSelected ? "3px solid #4A90E2" : "none"),
+        outlineOffset: isSelected ? "0px" : "0px",
+        cursor: isReadOnly ? "default" : "move",
+        zIndex: block.zIndex || 1500,
+        boxSizing: "border-box",
+      }}
     >
-      {/* ドラッグハンドル・選択枠 */}
-      <div
-        className="placeholder-handle"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          border: isSelected ? "2px solid #4A90E2" : "2px solid transparent",
-          boxSizing: "border-box",
-          cursor: isSelected && !block.isEditing ? "move" : "default",
-          zIndex: 200,
-          pointerEvents: "auto",
-        }}
-      />
-
       {/* プレースホルダーコンテンツ */}
       <div
         style={{
           width: "100%",
           height: "100%",
-          pointerEvents: block.isEditing ? "auto" : "none",
+          pointerEvents: "none",
         }}
       >
         {/* --- 承認印プレースホルダー --- */}
