@@ -81,6 +81,7 @@ export default function WriterPage() {
         onSaveDraft={actions.handleSaveDraft}
         onSubmitDocument={actions.handleSubmitDocument}
         onAddTextBlock={actions.handleAddTextBlock}
+        onAddBlock={actions.handleAddBlock}
         onAddPage={actions.handleAddPage}
         templates={templates}
         draftDocuments={draftDocuments}
@@ -90,13 +91,6 @@ export default function WriterPage() {
 
       {/* 中央エディタエリア */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* ページタブ */}
-        <WriterPageTabs
-          pages={editor.pages}
-          currentPage={editor.currentPage}
-          onSwitchPage={actions.handleSwitchPage}
-        />
-
         {/* エディタエリア */}
         <WriterCanvas
           blocks={editor.blocks}
@@ -113,6 +107,15 @@ export default function WriterPage() {
           setZoom={setZoom}
           paper={editor.paper}
           orientation={editor.orientation}
+          currentPage={editor.currentPage}
+        />
+
+        {/* ページタブ（下部） */}
+        <WriterPageTabs
+          pages={editor.pages}
+          currentPage={editor.currentPage}
+          onSwitchPage={actions.handleSwitchPage}
+          onDeletePage={actions.handleDeletePage}
         />
       </div>
 

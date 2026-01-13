@@ -11,10 +11,13 @@ export default function TextBlock({
   selectBlock,
   snap,
   isReadOnly = false,
+  isTextEditable = true,
 }: any) {
-  // titlePlaceholder は Writer ページ（isReadOnly=true）でも編集可能
-  const isTitleEditable = block.type === "titlePlaceholder" && isReadOnly;
-  const isEditable = block.editable !== false && (!isReadOnly || isTitleEditable);
+  // isReadOnly: ドラッグ・リサイズの可否を制御
+  // isTextEditable: テキスト入力の可否を制御
+  // この2つは完全に独立している
+  const canEditText = isTextEditable && block.editable !== false;
+  const canMoveResize = !isReadOnly;
 
   return (
     <Rnd
@@ -52,8 +55,6 @@ export default function TextBlock({
         boxSizing: "border-box",
       }}
       onClick={(e: any) => {
-        // titlePlaceholder は isReadOnly でもクリック可能（テキスト編集のため）
-        if (isReadOnly && block.type !== "titlePlaceholder") return;
         e.stopPropagation();
         selectBlock(block.id);
       }}
@@ -92,11 +93,11 @@ export default function TextBlock({
           left: 0,
           right: 0,
           bottom: 0,
-          outline: isReadOnly 
-            ? "none" 
-            : (isSelected 
+          outline: canMoveResize
+            ? (isSelected 
               ? "3px solid #4A90E2" 
-              : "1px dashed #cccccc"),
+              : "1px dashed #cccccc")
+            : "none",
           outlineOffset: "0px",
           boxSizing: "border-box",
           pointerEvents: "none",
@@ -104,48 +105,52 @@ export default function TextBlock({
         }}
       />
 
-      {/* ドラッグハンドル（透明） */}
-      <div
-        className="editor-text-handle"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          boxSizing: "border-box",
-          cursor: isSelected && !block.isEditing ? "move" : "default",
-          zIndex: 200,
-          pointerEvents: block.isEditing ? "none" : "auto",
-        }}
-        onDoubleClick={(e) => {
-          if (block.type === "text" || block.type === "titlePlaceholder") {
-            e.stopPropagation();
-            selectBlock(block.id);
-            updateBlock(block.id, { isEditing: true });
-            setTimeout(() => {
-              const editableDiv = document.querySelector(
-                `[data-block-id="${block.id}"] [contenteditable]`
-              );
-              if (editableDiv) {
-                (editableDiv as HTMLElement).focus();
-              }
-            }, 10);
-          }
-        }}
-      />
+      {/* ドラッグハンドル（透明） - 編集中は非表示、それ以外で移動可能なときは表示 */}
+      {canMoveResize && !block.isEditing && (
+        <div
+          className="editor-text-handle"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            boxSizing: "border-box",
+            cursor: isSelected ? "move" : "default",
+            zIndex: 200,
+            pointerEvents: "auto",
+          }}
+          onDoubleClick={(e) => {
+            if (canEditText && (block.type === "text" || block.type === "titlePlaceholder")) {
+              e.stopPropagation();
+              selectBlock(block.id);
+              updateBlock(block.id, { isEditing: true });
+              setTimeout(() => {
+                const editableDiv = document.querySelector(
+                  `[data-block-id="${block.id}"] [contenteditable]`
+                );
+                if (editableDiv) {
+                  (editableDiv as HTMLElement).focus();
+                }
+              }, 10);
+            }
+          }}
+        />
+      )}
 
       <div
         style={{
           width: "100%",
           height: "100%",
           pointerEvents: block.isEditing ? "auto" : "none",
+          zIndex: 50,
+          position: "relative",
         }}
       >
         {/* --- テキスト --- */}
         {block.type === "text" && (
           <div
-            contentEditable={isEditable}
+            contentEditable={canEditText}
             suppressContentEditableWarning
             className="w-full h-full"
             style={{
@@ -157,10 +162,11 @@ export default function TextBlock({
               outline: "none",
               width: "100%",
               height: "100%",
-              pointerEvents: block.isEditing ? "auto" : "none",
+              pointerEvents: canEditText ? "auto" : "none",
+              cursor: canEditText ? "text" : "default",
             }}
             onFocus={() => {
-              if (isEditable) {
+              if (canEditText) {
                 updateBlock(block.id, { isEditing: true });
               }
             }}
@@ -178,7 +184,7 @@ export default function TextBlock({
         {/* --- タイトルプレースホルダー --- */}
         {block.type === "titlePlaceholder" && (
           <div
-            contentEditable={isTitleEditable || isEditable}
+            contentEditable={canEditText}
             suppressContentEditableWarning
             className="w-full h-full"
             style={{
@@ -199,20 +205,21 @@ export default function TextBlock({
                     ? "flex-end"
                     : "flex-start",
               padding: "8px",
-              pointerEvents: (isTitleEditable || isEditable) ? (block.isEditing ? "auto" : "auto") : "none",
-              cursor: (isTitleEditable || isEditable) ? "text" : "default",
+              pointerEvents: canEditText ? "auto" : "none",
+              cursor: canEditText ? "text" : "default",
             }}
             onFocus={() => {
-              if (isTitleEditable || isEditable) {
+              if (canEditText) {
                 updateBlock(block.id, { isEditing: true });
               }
             }}
-            onBlur={(e) =>
+            onBlur={(e) => {
+              // 編集終了時に全ページのタイトルを同期
               updateBlock(block.id, {
                 value: e.currentTarget.innerText,
                 isEditing: false,
-              })
-            }
+              });
+            }}
           >
             {block.value || "タイトル"}
           </div>

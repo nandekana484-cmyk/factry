@@ -20,6 +20,7 @@ interface WriterCanvasProps {
   setZoom: (zoom: number) => void;
   paper: string;
   orientation: string;
+  currentPage: number;
 }
 
 /**
@@ -41,6 +42,7 @@ export default function WriterCanvas({
   setZoom,
   paper,
   orientation,
+  currentPage,
 }: WriterCanvasProps) {
   // グローバルクリックリスナーでキャンバス外クリックも選択解除
   useEffect(() => {
@@ -197,7 +199,8 @@ export default function WriterCanvas({
                     updateBlock={onUpdateBlock}
                     selectBlock={onSelectBlock}
                     snap={snap}
-                    isReadOnly={true}
+                    isReadOnly={false}
+                    isTextEditable={true}
                   />
                 ) : isPlaceholder ? (
                   <PlaceholderBlock
@@ -208,6 +211,7 @@ export default function WriterCanvas({
                     selectBlock={onSelectBlock}
                     snap={snap}
                     isReadOnly={true}
+                    currentPage={currentPage}
                   />
                 ) : (
                   <ShapeBlock

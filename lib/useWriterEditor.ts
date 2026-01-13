@@ -121,9 +121,29 @@ export const useWriterEditor = () => {
   };
 
   const updateBlock = (id: string, updated: any) => {
+    // 現在のページのブロックを更新
     setBlocks((prev) =>
       prev.map((b) => (b.id === id ? { ...b, ...updated } : b))
     );
+
+    // タイトルプレースホルダーの場合、全ページの同じタイトルを同期
+    // ただし、編集中（isEditing: true）の場合は同期しない（カーソル位置保持のため）
+    const targetBlock = blocks.find((b) => b.id === id);
+    if (
+      targetBlock && 
+      targetBlock.type === "titlePlaceholder" && 
+      updated.value !== undefined &&
+      updated.isEditing === false // 編集終了時のみ全ページ同期
+    ) {
+      setPages((prev) =>
+        prev.map((page) => ({
+          ...page,
+          blocks: page.blocks.map((b) =>
+            b.type === "titlePlaceholder" ? { ...b, value: updated.value } : b
+          ),
+        }))
+      );
+    }
 
     // 選択中のブロック情報も同期
     if (selectedBlock?.id === id) {
@@ -146,6 +166,23 @@ export const useWriterEditor = () => {
   };
 
   const deleteBlock = (id: string) => {
+    const targetBlock = blocks.find((b) => b.id === id);
+    
+    // 削除禁止条件
+    if (targetBlock) {
+      // 1. タイトルプレースホルダーは削除不可
+      if (targetBlock.type === "titlePlaceholder") {
+        alert("タイトルブロックは削除できません。");
+        return;
+      }
+      
+      // 2. 編集中のブロックは削除不可
+      if (targetBlock.isEditing === true) {
+        alert("編集中のブロックは削除できません。編集を終了してから削除してください。");
+        return;
+      }
+    }
+    
     setBlocks((prev) => prev.filter((b) => b.id !== id));
     // 削除されたブロックが選択中だったら選択を解除
     if (selectedBlock?.id === id) {
@@ -164,13 +201,59 @@ export const useWriterEditor = () => {
   // ページ管理機能
   const addPage = () => {
     const newPageNumber = pages.length + 1;
+    
+    // 1ページ目のテンプレートブロック（通常のテキストブロック以外）をコピー
+    const firstPage = pages[0];
+    const templateBlocks = firstPage?.blocks
+      ? JSON.parse(JSON.stringify(firstPage.blocks)).filter((block: any) => {
+          // 通常のテキストブロックは除外、titlePlaceholder（タイトル）は含める
+          return block.type !== "text";
+        })
+      : [];
+    
     const newPage: Page = {
       id: nanoid(),
       number: newPageNumber,
-      blocks: [],
+      blocks: templateBlocks, // テンプレートとタイトルを引き継ぐ
     };
     setPages((prev) => [...prev, newPage]);
     return newPageNumber;
+  };
+
+  const deletePage = (pageNumber: number) => {
+    // 1ページ目は削除できない
+    if (pageNumber === 1 || pages.length === 1) {
+      return false;
+    }
+
+    // 現在のページのブロックを保存
+    setPages((prev) =>
+      prev.map((p) =>
+        p.number === currentPage ? { ...p, blocks: [...blocks] } : p
+      )
+    );
+
+    // ページを削除し、番号を振り直す
+    setPages((prev) => {
+      const filtered = prev.filter((p) => p.number !== pageNumber);
+      return filtered.map((p, index) => ({
+        ...p,
+        number: index + 1,
+      }));
+    });
+
+    // 削除したページが現在ページの場合、前のページに移動
+    if (currentPage === pageNumber) {
+      const newCurrentPage = Math.max(1, pageNumber - 1);
+      setTimeout(() => {
+        switchPage(newCurrentPage);
+      }, 0);
+    } else if (currentPage > pageNumber) {
+      // 削除したページより後ろにいる場合、番号を調整
+      setCurrentPage((prev) => prev - 1);
+    }
+
+    return true;
   };
 
   const switchPage = (pageNumber: number) => {
@@ -242,7 +325,7 @@ export const useWriterEditor = () => {
       
       // テンプレートのブロックをディープコピーして、グリッドに揃える
       const gridSize = 20; // 固定グリッドサイズ
-      const templateBlocks = template.blocks.map((b: any) => ({
+      const templateBlocks = JSON.parse(JSON.stringify(template.blocks)).map((b: any) => ({
         ...b,
         x: Math.round(b.x / gridSize) * gridSize,
         y: Math.round(b.y / gridSize) * gridSize,
@@ -317,6 +400,7 @@ export const useWriterEditor = () => {
     pages,
     currentPage,
     addPage,
+    deletePage,
     switchPage,
     updateCurrentPageBlocks,
     resetToSinglePage,

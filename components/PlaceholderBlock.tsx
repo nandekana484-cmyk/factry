@@ -9,8 +9,10 @@ export default function PlaceholderBlock({
   selectBlock,
   snap,
   isReadOnly = false,
+  currentPage = 1,
 }: any) {
   const isEditable = block.editable !== false && !isReadOnly;
+  const showDiagonalLine = currentPage > 1 && block.type === "approvalStampPlaceholder";
 
   return (
     <Rnd
@@ -93,10 +95,50 @@ export default function PlaceholderBlock({
               padding: "4px",
               textAlign: "center",
               pointerEvents: "none",
+              position: "relative",
             }}
           >
             <div style={{ fontWeight: "bold" }}>承認印</div>
             <div style={{ fontSize: "11px" }}>({block.role})</div>
+            
+            {/* 2ページ目以降は斜線を追加 */}
+            {showDiagonalLine && (
+              <>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    pointerEvents: "none",
+                  }}
+                >
+                  <svg
+                    width="100%"
+                    height="100%"
+                    style={{ position: "absolute", top: 0, left: 0 }}
+                  >
+                    <line
+                      x1="0"
+                      y1="0"
+                      x2="100%"
+                      y2="100%"
+                      stroke="#999999"
+                      strokeWidth="2"
+                    />
+                    <line
+                      x1="100%"
+                      y1="0"
+                      x2="0"
+                      y2="100%"
+                      stroke="#999999"
+                      strokeWidth="2"
+                    />
+                  </svg>
+                </div>
+              </>
+            )}
           </div>
         )}
 

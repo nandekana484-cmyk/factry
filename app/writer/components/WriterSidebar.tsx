@@ -1,5 +1,7 @@
 "use client";
 
+import FieldPalette from "@/components/FieldPalette";
+
 interface WriterSidebarProps {
   isSaving: boolean;
   onGoBack: () => void;
@@ -7,6 +9,7 @@ interface WriterSidebarProps {
   onSubmitDocument: () => void;
   onAddTextBlock: () => void;
   onAddPage: () => void;
+  onAddBlock: (type: string, role?: string) => void;
   templates: any[];
   draftDocuments: any[];
   onLoadTemplate: (templateId: string) => void;
@@ -24,6 +27,7 @@ export default function WriterSidebar({
   onSubmitDocument,
   onAddTextBlock,
   onAddPage,
+  onAddBlock,
   templates,
   draftDocuments,
   onLoadTemplate,
@@ -31,7 +35,7 @@ export default function WriterSidebar({
 }: WriterSidebarProps) {
   return (
     <div
-      className="border-r bg-gray-50 overflow-y-auto p-4"
+      className="border-r bg-gray-50 flex flex-col"
       style={{
         width: "260px",
         flex: "0 0 260px",
@@ -40,71 +44,82 @@ export default function WriterSidebar({
       }}
       data-ignore-deselect="true"
     >
-      <button
-        onClick={onGoBack}
-        className="w-full mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-      >
-        ← 戻る
-      </button>
+      {/* 最上部: テンプレート・下書き選択 */}
+      <div className="p-4 border-b bg-white">
+        <div className="mb-3">
+          <label className="block text-xs font-bold text-gray-700 mb-1">テンプレート選択</label>
+          <select
+            onChange={(e) => e.target.value && onLoadTemplate(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue=""
+          >
+            <option value="">テンプレートを選択...</option>
+            {templates.map((template: any) => (
+              <option key={template.id} value={template.id}>
+                {template.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <button
-        onClick={onSaveDraft}
-        className="w-full mb-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        disabled={isSaving}
-      >
-        下書き保存
-      </button>
-
-      <button
-        onClick={onSubmitDocument}
-        className="w-full mb-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-        disabled={isSaving}
-      >
-        提出
-      </button>
-
-      <button
-        onClick={onAddTextBlock}
-        className="w-full mb-2 px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
-      >
-        テキスト追加
-      </button>
-
-      <button
-        onClick={onAddPage}
-        className="w-full mb-4 px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
-      >
-        ページ追加
-      </button>
-
-      <div className="border-t pt-4">
-        <h3 className="font-bold mb-2">テンプレート</h3>
-        <div className="space-y-2">
-          {templates.map((template: any) => (
-            <button
-              key={template.id}
-              onClick={() => onLoadTemplate(template.id)}
-              className="w-full text-left px-3 py-2 bg-white border rounded hover:bg-gray-100 text-sm"
-            >
-              {template.name}
-            </button>
-          ))}
+        <div>
+          <label className="block text-xs font-bold text-gray-700 mb-1">下書き選択</label>
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                const draft = draftDocuments.find((d: any) => d.id === e.target.value);
+                if (draft) onLoadDraft(draft);
+              }
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue=""
+          >
+            <option value="">下書きを選択...</option>
+            {draftDocuments.map((draft: any) => (
+              <option key={draft.id} value={draft.id}>
+                {draft.title}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      <div className="border-t pt-4 mt-4">
-        <h3 className="font-bold mb-2">下書き</h3>
-        <div className="space-y-2">
-          {draftDocuments.map((draft: any) => (
-            <button
-              key={draft.id}
-              onClick={() => onLoadDraft(draft)}
-              className="w-full text-left px-3 py-2 bg-white border rounded hover:bg-gray-100 text-sm"
-            >
-              {draft.title}
-            </button>
-          ))}
-        </div>
+      {/* 上部: アクションボタン */}
+      <div className="p-4 border-b bg-white">
+        <button
+          onClick={onGoBack}
+          className="w-full mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+        >
+          ← 戻る
+        </button>
+
+        <button
+          onClick={onSaveDraft}
+          className="w-full mb-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          disabled={isSaving}
+        >
+          下書き保存
+        </button>
+
+        <button
+          onClick={onSubmitDocument}
+          className="w-full mb-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+          disabled={isSaving}
+        >
+          提出
+        </button>
+
+        <button
+          onClick={onAddPage}
+          className="w-full px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
+        >
+          ページ追加
+        </button>
+      </div>
+
+      {/* 中部: FieldPalette */}
+      <div className="flex-1 overflow-y-auto">
+        <FieldPalette onAdd={onAddBlock} />
       </div>
     </div>
   );

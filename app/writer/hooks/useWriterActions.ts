@@ -89,10 +89,22 @@ export const useWriterActions = (
     setIsDirty(true);
   }, [editor, setIsDirty]);
 
+  const handleAddBlock = useCallback((type: string, role?: string) => {
+    editor.addBlock(type, role);
+    setIsDirty(true);
+  }, [editor, setIsDirty]);
+
   const handleAddPage = useCallback(() => {
     const newPageNumber = editor.addPage();
     editor.switchPage(newPageNumber);
     setIsDirty(true);
+  }, [editor, setIsDirty]);
+
+  const handleDeletePage = useCallback((pageNumber: number) => {
+    const success = editor.deletePage(pageNumber);
+    if (success) {
+      setIsDirty(true);
+    }
   }, [editor, setIsDirty]);
 
   const handleSwitchPage = useCallback((pageNumber: number) => {
@@ -105,7 +117,9 @@ export const useWriterActions = (
     handleInsertAIText,
     handleInsertAITable,
     handleAddTextBlock,
+    handleAddBlock,
     handleAddPage,
+    handleDeletePage,
     handleSwitchPage,
   };
 };
