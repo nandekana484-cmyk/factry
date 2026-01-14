@@ -15,6 +15,7 @@
     "@editorjs/editorjs": "^2.31.1",
     "@editorjs/header": "^2.8.8",
     "@editorjs/paragraph": "^2.11.7",
+    "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",

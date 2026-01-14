@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTemplateEditor } from "@/lib/useTemplateEditor";
 import { useTemplateSave } from "./hooks/useTemplateSave";
 import { useTemplateLoad } from "./hooks/useTemplateLoad";
@@ -77,10 +77,31 @@ export default function TemplateCreatePage() {
     pendingAction,
   });
 
+  // Undo/Redoキーボードショートカット
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 編集中のブロックではショートカットを無効化
+      if (editor.selectedBlock?.isEditing) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        editor.undo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        editor.redo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editor]);
+
   return (
     <div className="flex h-screen gap-0 overflow-hidden">
       {/* 左サイドバー：FieldPalette */}
-      <LeftSidebar editor={editor} setIsDirty={setIsDirty} />
+      <div className="no-print">
+        <LeftSidebar editor={editor} setIsDirty={setIsDirty} />
+      </div>
 
       {/* 中央：エディタキャンバス */}
       <TemplateCanvas
@@ -91,13 +112,15 @@ export default function TemplateCreatePage() {
       />
 
       {/* 右サイドバー：TemplateList + PropertyEditor */}
-      <RightSidebar
-        editor={editor}
-        setIsDirty={setIsDirty}
-        templateRefresh={templateRefresh}
-        onLoadTemplate={handleLoadTemplate}
-        onDeleteTemplate={handleDeleteTemplate}
-      />
+      <div className="no-print">
+        <RightSidebar
+          editor={editor}
+          setIsDirty={setIsDirty}
+          templateRefresh={templateRefresh}
+          onLoadTemplate={handleLoadTemplate}
+          onDeleteTemplate={handleDeleteTemplate}
+        />
+      </div>
 
       {/* ダイアログ群 */}
       <TemplateDialogs

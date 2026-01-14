@@ -167,7 +167,7 @@ export default function PropertyEditor({
         </div>
 
         {/* テキスト専用：フォント・サイズ・太さ・色 */}
-        {(block.type === "text" || block.type === "titlePlaceholder") && (
+        {(block.type === "text" || block.type === "titlePlaceholder" || block.type === "subtitlePlaceholder") && (
           <>
             <div>
               <label className="block text-xs text-gray-500">文字色</label>
@@ -257,7 +257,7 @@ export default function PropertyEditor({
         )}
 
         {/* すべての図形共通：枠線色と太さ */}
-        {block.type !== "text" && block.type !== "titlePlaceholder" && (
+        {block.type !== "text" && block.type !== "titlePlaceholder" && block.type !== "subtitlePlaceholder" && (
           <>
             <div>
               <label className="block text-xs text-gray-500">枠線色</label>

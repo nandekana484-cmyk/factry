@@ -121,7 +121,7 @@ export default function TextBlock({
             pointerEvents: "auto",
           }}
           onDoubleClick={(e) => {
-            if (canEditText && (block.type === "text" || block.type === "titlePlaceholder")) {
+            if (canEditText && (block.type === "text" || block.type === "titlePlaceholder" || block.type === "subtitlePlaceholder")) {
               e.stopPropagation();
               selectBlock(block.id);
               updateBlock(block.id, { isEditing: true });
@@ -164,6 +164,9 @@ export default function TextBlock({
               height: "100%",
               pointerEvents: canEditText ? "auto" : "none",
               cursor: canEditText ? "text" : "default",
+              whiteSpace: "pre-wrap",
+              overflowWrap: "break-word",
+              padding: "4px",
             }}
             onFocus={() => {
               if (canEditText) {
@@ -176,6 +179,12 @@ export default function TextBlock({
                 isEditing: false,
               })
             }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                // Enterキーの伝播を停止（改行のみ実行）
+                e.stopPropagation();
+              }
+            }}
           >
             {block.label}
           </div>
@@ -196,6 +205,8 @@ export default function TextBlock({
               outline: "none",
               width: "100%",
               height: "100%",
+              whiteSpace: "pre-wrap",
+              overflowWrap: "break-word",
               display: "flex",
               alignItems: "center",
               justifyContent:
@@ -220,8 +231,66 @@ export default function TextBlock({
                 isEditing: false,
               });
             }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                // Enterキーの伝播を停止（改行のみ実行）
+                e.stopPropagation();
+              }
+            }}
           >
             {block.value || "タイトル"}
+          </div>
+        )}
+
+        {/* --- サブタイトルプレースホルダー --- */}
+        {block.type === "subtitlePlaceholder" && (
+          <div
+            contentEditable={canEditText}
+            suppressContentEditableWarning
+            className="w-full h-full"
+            style={{
+              fontSize: `${Math.round(block.fontSize || 16)}px`,
+              fontWeight: block.fontWeight || "normal",
+              fontFamily: block.fontFamily || "sans-serif",
+              textAlign: block.textAlign || "left",
+              color: block.color || "#000000",
+              outline: "none",
+              width: "100%",
+              height: "100%",
+              whiteSpace: "pre-wrap",
+              overflowWrap: "break-word",
+              display: "flex",
+              alignItems: "center",
+              justifyContent:
+                block.textAlign === "center"
+                  ? "center"
+                  : block.textAlign === "right"
+                    ? "flex-end"
+                    : "flex-start",
+              padding: "8px",
+              pointerEvents: canEditText ? "auto" : "none",
+              cursor: canEditText ? "text" : "default",
+            }}
+            onFocus={() => {
+              if (canEditText) {
+                updateBlock(block.id, { isEditing: true });
+              }
+            }}
+            onBlur={(e) => {
+              // 編集終了時に全ページのサブタイトルを同期
+              updateBlock(block.id, {
+                value: e.currentTarget.innerText,
+                isEditing: false,
+              });
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                // Enterキーの伝播を停止（改行のみ実行）
+                e.stopPropagation();
+              }
+            }}
+          >
+            {block.value || "サブタイトル"}
           </div>
         )}
       </div>

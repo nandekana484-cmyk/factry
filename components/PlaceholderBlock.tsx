@@ -78,6 +78,7 @@ export default function PlaceholderBlock({
         {/* --- 承認印プレースホルダー --- */}
         {block.type === "approvalStampPlaceholder" && (
           <div
+            className="approval-border"
             style={{
               width: "100%",
               height: "100%",

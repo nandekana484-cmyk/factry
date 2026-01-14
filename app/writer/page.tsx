@@ -11,6 +11,7 @@ import WriterSidebar from "./components/WriterSidebar";
 import WriterPageTabs from "./components/WriterPageTabs";
 import WriterCanvas from "./components/WriterCanvas";
 import WriterUnsavedDialog from "./components/WriterUnsavedDialog";
+import WriterPropertyBox from "@/components/WriterPropertyBox";
 import AIChat from "@/components/AIChat";
 
 export default function WriterPage() {
@@ -21,6 +22,7 @@ export default function WriterPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [showPropertyBox, setShowPropertyBox] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
   const [draftDocuments, setDraftDocuments] = useState<any[]>([]);
   
@@ -50,6 +52,25 @@ export default function WriterPage() {
   // Deleteキー処理
   useWriterDeleteKey(editor.selectedBlock, editor.deleteBlock, setIsDirty);
 
+  // Undo/Redoキーボードショートカット
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 編集中のブロックではショートカットを無効化
+      if (editor.selectedBlock?.isEditing) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        editor.undo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        editor.redo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editor]);
+
   // アクションハンドラー
   const actions = useWriterActions(editor, setIsDirty, setIsSaving);
 
@@ -73,21 +94,20 @@ export default function WriterPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden no-print-container">
       {/* 左サイドバー */}
-      <WriterSidebar
-        isSaving={isSaving}
-        onGoBack={handleGoBack}
-        onSaveDraft={actions.handleSaveDraft}
-        onSubmitDocument={actions.handleSubmitDocument}
-        onAddTextBlock={actions.handleAddTextBlock}
-        onAddBlock={actions.handleAddBlock}
-        onAddPage={actions.handleAddPage}
-        templates={templates}
-        draftDocuments={draftDocuments}
-        onLoadTemplate={handleLoadTemplate}
-        onLoadDraft={handleLoadDraft}
-      />
+      <div className="no-print">
+        <WriterSidebar
+          onGoBack={handleGoBack}
+          onAddTextBlock={actions.handleAddTextBlock}
+          onAddBlock={actions.handleAddBlock}
+          onAddPage={actions.handleAddPage}
+          templates={templates}
+          draftDocuments={draftDocuments}
+          onLoadTemplate={handleLoadTemplate}
+          onLoadDraft={handleLoadDraft}
+        />
+      </div>
 
       {/* 中央エディタエリア */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -108,20 +128,31 @@ export default function WriterPage() {
           paper={editor.paper}
           orientation={editor.orientation}
           currentPage={editor.currentPage}
+          showPropertyBox={showPropertyBox}
+          setShowPropertyBox={setShowPropertyBox}
+          onSaveDraft={actions.handleSaveDraft}
+          onOverwriteDraft={actions.handleOverwriteDraft}
+          currentDocumentId={editor.currentDocumentId}
+          onUndo={editor.undo}
+          onRedo={editor.redo}
+          canUndo={editor.canUndo}
+          canRedo={editor.canRedo}
         />
 
         {/* ページタブ（下部） */}
-        <WriterPageTabs
-          pages={editor.pages}
-          currentPage={editor.currentPage}
-          onSwitchPage={actions.handleSwitchPage}
-          onDeletePage={actions.handleDeletePage}
-        />
+        <div className="no-print">
+          <WriterPageTabs
+            pages={editor.pages}
+            currentPage={editor.currentPage}
+            onSwitchPage={actions.handleSwitchPage}
+            onDeletePage={actions.handleDeletePage}
+          />
+        </div>
       </div>
 
       {/* 右：AIチャット */}
       <div 
-        className="border-l"
+        className="border-l no-print"
         style={{
           width: "384px",
           flex: "0 0 384px",
@@ -153,6 +184,15 @@ export default function WriterPage() {
           router.push("/dashboard/documents");
         }}
       />
+
+      {/* プロパティボックス */}
+      {showPropertyBox && (
+        <WriterPropertyBox
+          selectedBlock={editor.selectedBlock}
+          onUpdateBlock={handleUpdateBlock}
+          onClose={() => setShowPropertyBox(false)}
+        />
+      )}
     </div>
   );
 }

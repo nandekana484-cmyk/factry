@@ -273,7 +273,7 @@ export default function ShapeBlock({
         style={{
           width: "100%",
           height: "100%",
-          backgroundColor: block.type === "rect" || block.type === "circle" ? (block.backgroundColor || "transparent") : "transparent",
+          backgroundColor: block.type === "rect" || block.type === "circle" ? (block.fillColor || block.backgroundColor || "transparent") : "transparent",
           borderTop:
             block.type === "rect" || block.type === "circle"
               ? adjacent.top ? "none" : `${block.borderWidth || 1}px solid ${block.borderColor || "#000"}`
@@ -318,7 +318,7 @@ export default function ShapeBlock({
           >
             <path
               d={`M ${block.width / 2} 0 L ${block.width} ${block.height} L 0 ${block.height} Z`}
-              fill={block.backgroundColor || "transparent"}
+              fill={block.fillColor || block.backgroundColor || "transparent"}
               stroke={block.borderColor || "#000"}
               strokeWidth={block.borderWidth || 2}
             />
@@ -395,18 +395,34 @@ export default function ShapeBlock({
         )}
 
         {/* 画像 */}
-        {block.type === "image" && block.imageUrl && (
-          <img
-            src={block.imageUrl}
+        {block.type === "image" && (
+          <div
             style={{
               width: "100%",
               height: "100%",
-              objectFit: "contain",
-              display: "block",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: `${block.borderWidth || 1}px solid ${block.borderColor || "#ccc"}`,
+              backgroundColor: "#f5f5f5",
               pointerEvents: "none",
             }}
-            alt=""
-          />
+          >
+            {block.src ? (
+              <img
+                src={block.src}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  display: "block",
+                }}
+                alt=""
+              />
+            ) : (
+              <span style={{ color: "#999", fontSize: "14px" }}>画像</span>
+            )}
+          </div>
         )}
       </div>
     </Rnd>

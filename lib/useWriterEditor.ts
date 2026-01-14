@@ -31,6 +31,71 @@ export const useWriterEditor = () => {
   // 用紙サイズ（テンプレートから読み込む）
   const [paper, setPaper] = useState("A4");
   const [orientation, setOrientation] = useState("portrait");
+  
+  // 現在編集中の文書ID（上書き保存用）
+  const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
+  
+  // Undo/Redo用の履歴管理
+  const [history, setHistory] = useState<Page[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isUndoRedoing, setIsUndoRedoing] = useState(false);
+
+  // 履歴に現在の状態を保存
+  const saveToHistory = useCallback(() => {
+    if (isUndoRedoing) return; // Undo/Redo中は履歴を保存しない
+
+    const currentState = JSON.parse(JSON.stringify(pages)); // ディープコピー
+    setHistory((prev) => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      newHistory.push(currentState);
+      // 履歴は最大50件まで
+      if (newHistory.length > 50) {
+        newHistory.shift();
+        return newHistory;
+      }
+      return newHistory;
+    });
+    setHistoryIndex((prev) => {
+      const newIndex = prev + 1;
+      return newIndex > 50 ? 50 : newIndex;
+    });
+  }, [pages, historyIndex, isUndoRedoing]);
+
+  // Undo（元に戻す）
+  const undo = useCallback(() => {
+    if (historyIndex <= 0) return;
+
+    setIsUndoRedoing(true);
+    const previousState = history[historyIndex - 1];
+    setPages(JSON.parse(JSON.stringify(previousState)));
+    setHistoryIndex(historyIndex - 1);
+    
+    // 現在のページのブロックを更新
+    const currentPageData = previousState.find((p) => p.number === currentPage);
+    if (currentPageData) {
+      setBlocks(currentPageData.blocks);
+    }
+    
+    setTimeout(() => setIsUndoRedoing(false), 0);
+  }, [history, historyIndex, currentPage]);
+
+  // Redo（やり直し）
+  const redo = useCallback(() => {
+    if (historyIndex >= history.length - 1) return;
+
+    setIsUndoRedoing(true);
+    const nextState = history[historyIndex + 1];
+    setPages(JSON.parse(JSON.stringify(nextState)));
+    setHistoryIndex(historyIndex + 1);
+    
+    // 現在のページのブロックを更新
+    const currentPageData = nextState.find((p) => p.number === currentPage);
+    if (currentPageData) {
+      setBlocks(currentPageData.blocks);
+    }
+    
+    setTimeout(() => setIsUndoRedoing(false), 0);
+  }, [history, historyIndex, currentPage]);
 
   // ブロック追加
   const addBlock = (type: string) => {
@@ -59,6 +124,65 @@ export const useWriterEditor = () => {
           editable: true,
         };
         break;
+      case "rect":
+        block = {
+          ...base,
+          width: 200,
+          height: 100,
+          fillColor: "transparent",
+          borderColor: "#000000",
+          borderWidth: 2,
+        };
+        break;
+      case "circle":
+        block = {
+          ...base,
+          width: 100,
+          height: 100,
+          fillColor: "transparent",
+          borderColor: "#000000",
+          borderWidth: 2,
+        };
+        break;
+      case "triangle":
+        block = {
+          ...base,
+          width: 100,
+          height: 100,
+          fillColor: "transparent",
+          borderColor: "#000000",
+          borderWidth: 2,
+        };
+        break;
+      case "arrow":
+        block = {
+          ...base,
+          width: 150,
+          height: 50,
+          fillColor: "transparent",
+          borderColor: "#000000",
+          borderWidth: 2,
+        };
+        break;
+      case "line":
+        block = {
+          ...base,
+          width: 200,
+          height: 2,
+          borderColor: "#000000",
+          borderWidth: 2,
+        };
+        break;
+      case "image":
+        block = {
+          ...base,
+          width: 200,
+          height: 150,
+          src: "",
+          borderColor: "#cccccc",
+          borderWidth: 1,
+        };
+        break;
       case "table":
         const rows = 3;
         const cols = 3;
@@ -81,6 +205,15 @@ export const useWriterEditor = () => {
               height: 30,
             }))
           ),
+        };
+        break;
+      default:
+        // デフォルトは基本図形として扱う
+        block = {
+          ...base,
+          fillColor: "transparent",
+          borderColor: "#000000",
+          borderWidth: 2,
         };
         break;
     }
@@ -126,20 +259,21 @@ export const useWriterEditor = () => {
       prev.map((b) => (b.id === id ? { ...b, ...updated } : b))
     );
 
-    // タイトルプレースホルダーの場合、全ページの同じタイトルを同期
+    // タイトルプレースホルダーの場合、全ページの同じタイプのブロックを同期
     // ただし、編集中（isEditing: true）の場合は同期しない（カーソル位置保持のため）
     const targetBlock = blocks.find((b) => b.id === id);
     if (
       targetBlock && 
-      targetBlock.type === "titlePlaceholder" && 
+      (targetBlock.type === "titlePlaceholder" || targetBlock.type === "subtitlePlaceholder") && 
       updated.value !== undefined &&
       updated.isEditing === false // 編集終了時のみ全ページ同期
     ) {
+      const targetType = targetBlock.type;
       setPages((prev) =>
         prev.map((page) => ({
           ...page,
           blocks: page.blocks.map((b) =>
-            b.type === "titlePlaceholder" ? { ...b, value: updated.value } : b
+            b.type === targetType ? { ...b, value: updated.value } : b
           ),
         }))
       );
@@ -170,9 +304,13 @@ export const useWriterEditor = () => {
     
     // 削除禁止条件
     if (targetBlock) {
-      // 1. タイトルプレースホルダーは削除不可
+      // 1. タイトル・サブタイトルプレースホルダーは削除不可
       if (targetBlock.type === "titlePlaceholder") {
         alert("タイトルブロックは削除できません。");
+        return;
+      }
+      if (targetBlock.type === "subtitlePlaceholder") {
+        alert("サブタイトルブロックは削除できません。");
         return;
       }
       
@@ -282,6 +420,8 @@ export const useWriterEditor = () => {
         p.number === currentPage ? { ...p, blocks: [...newBlocks] } : p
       )
     );
+    // 履歴に保存
+    setTimeout(() => saveToHistory(), 0);
   };
 
   const resetToSinglePage = () => {
@@ -331,6 +471,7 @@ export const useWriterEditor = () => {
         y: Math.round(b.y / gridSize) * gridSize,
         width: Math.round(b.width / gridSize) * gridSize,
         height: Math.round(b.height / gridSize) * gridSize,
+        isTemplateBlock: true, // テンプレート由来のブロックとしてマーク
       }));
       
       setBlocks(templateBlocks);
@@ -361,9 +502,43 @@ export const useWriterEditor = () => {
     return document;
   };
 
-  // 下書き保存
+  // 下書き保存（名前を付けて保存）
   const saveDraft = (title: string) => {
-    return saveDocument(title, "draft");
+    const document = saveDocument(title, "draft");
+    setCurrentDocumentId(document.id);
+    return document;
+  };
+
+  // 下書き上書き保存
+  const overwriteDraft = (title: string) => {
+    if (!currentDocumentId) {
+      // IDがない場合は新規保存
+      return saveDraft(title);
+    }
+
+    const document: any = {
+      id: currentDocumentId,
+      title,
+      status: "draft",
+      date: new Date().toISOString(),
+      pages,
+      paper,
+      orientation,
+    };
+
+    const existing = JSON.parse(localStorage.getItem("documents") || "[]");
+    const index = existing.findIndex((doc: any) => doc.id === currentDocumentId);
+    
+    if (index !== -1) {
+      // 既存の文書を更新
+      existing[index] = document;
+    } else {
+      // 見つからない場合は新規追加
+      existing.push(document);
+    }
+    
+    localStorage.setItem("documents", JSON.stringify(existing));
+    return document;
   };
 
   // 文書提出
@@ -373,6 +548,7 @@ export const useWriterEditor = () => {
 
   // 下書き読み込み
   const loadDraft = (draft: any) => {
+    setCurrentDocumentId(draft.id || null);
     if (draft.pages) {
       const blocks = loadPages(draft.pages);
       return blocks;
@@ -412,11 +588,20 @@ export const useWriterEditor = () => {
     // 文書保存
     saveDocument,
     saveDraft,
+    overwriteDraft,
     submitDocument,
     loadDraft,
+    currentDocumentId,
+    setCurrentDocumentId,
 
     // 用紙サイズ
     paper,
     orientation,
+
+    // Undo/Redo
+    undo,
+    redo,
+    canUndo: historyIndex > 0,
+    canRedo: historyIndex < history.length - 1,
   };
 };

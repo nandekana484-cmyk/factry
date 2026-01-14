@@ -70,6 +70,18 @@
 
 /* 印刷時にテキストブロックの編集用枠線を非表示 */
 @media print {
+  /* UI要素を非表示 */
+  .no-print {
+    display: none !important;
+  }
+
+  /* サイドバーとチャットを非表示 */
+  body > div > div:first-child,
+  body > div > div:last-child {
+    display: none !important;
+  }
+
+  /* テキストブロックの編集用UI */
   .editor-text-frame {
     display: none !important;
   }
@@ -84,5 +96,47 @@
   
   .drag-handle {
     border: none !important;
+  }
+  
+  /* 承認印の枠線を非表示 */
+  .approval-border {
+    border: none !important;
+  }
+
+  /* キャンバスを全画面表示 */
+  .print-area {
+    overflow: visible !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* ズーム設定を無効化して実寸表示 */
+  .print-area > div {
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+  }
+
+  .print-area > div > div {
+    transform: none !important;
+  }
+
+  /* キャンバスを用紙サイズに合わせる */
+  .print-area .bg-white.shadow-lg {
+    width: 100% !important;
+    height: auto !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    page-break-after: always;
+  }
+
+  /* ページ番号を下部中央に表示 (1 / 1 形式) */
+  @page {
+    @bottom-center {
+      content: counter(page) " / " counter(pages);
+      font-size: 10pt;
+      color: #666;
+    }
   }
 }

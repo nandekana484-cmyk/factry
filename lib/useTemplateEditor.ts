@@ -22,6 +22,57 @@ export const useTemplateEditor = () => {
   const [gridSize, setGridSize] = useState(20);
   const [snapMode, setSnapMode] = useState(true);
 
+  // Undo/Redo用の履歴管理
+  const [history, setHistory] = useState<any[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isUndoRedoing, setIsUndoRedoing] = useState(false);
+
+  // 履歴に現在の状態を保存
+  const saveToHistory = useCallback(() => {
+    if (isUndoRedoing) return;
+
+    const currentState = JSON.parse(JSON.stringify(blocks));
+    setHistory((prev) => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      newHistory.push(currentState);
+      if (newHistory.length > 50) {
+        newHistory.shift();
+        return newHistory;
+      }
+      return newHistory;
+    });
+    setHistoryIndex((prev) => {
+      const newIndex = prev + 1;
+      return newIndex > 50 ? 50 : newIndex;
+    });
+  }, [blocks, historyIndex, isUndoRedoing]);
+
+  // Undo（元に戻す）
+  const undo = useCallback(() => {
+    if (historyIndex <= 0) return;
+
+    setIsUndoRedoing(true);
+    const previousState = history[historyIndex - 1];
+    setBlocks(JSON.parse(JSON.stringify(previousState)));
+    setHistoryIndex(historyIndex - 1);
+    setSelectedBlock(null);
+    
+    setTimeout(() => setIsUndoRedoing(false), 0);
+  }, [history, historyIndex]);
+
+  // Redo（やり直し）
+  const redo = useCallback(() => {
+    if (historyIndex >= history.length - 1) return;
+
+    setIsUndoRedoing(true);
+    const nextState = history[historyIndex + 1];
+    setBlocks(JSON.parse(JSON.stringify(nextState)));
+    setHistoryIndex(historyIndex + 1);
+    setSelectedBlock(null);
+    
+    setTimeout(() => setIsUndoRedoing(false), 0);
+  }, [history, historyIndex]);
+
   // グリッドスナップ関数
   const snapToGrid = (value: number): number => {
     if (!snapMode) return Math.round(value);
@@ -30,7 +81,7 @@ export const useTemplateEditor = () => {
 
   const addBlock = (type: string, role?: string) => {
     // 初期z-indexを決定（テキスト系は高く、図形系は低く）
-    const isTextLike = type === "text" || type === "titlePlaceholder";
+    const isTextLike = type === "text" || type === "titlePlaceholder" || type === "subtitlePlaceholder";
     const isPlaceholder = role === "approval" || role === "management";
     const initialZIndex = isTextLike || isPlaceholder ? 1500 : 100;
 
@@ -179,6 +230,23 @@ export const useTemplateEditor = () => {
           editable: true,
         };
         break;
+      case "subtitlePlaceholder":
+        block = {
+          ...base,
+          width: 400,
+          height: 40,
+          value: "",
+          fontSize: 16,
+          fontWeight: "normal",
+          fontFamily: "sans-serif",
+          textAlign: "left",
+          color: "#000000",
+          borderColor: "#666666",
+          borderWidth: 1,
+          backgroundColor: "transparent",
+          editable: true,
+        };
+        break;
     }
 
     setBlocks((prev) => [...prev, block]);
@@ -247,6 +315,10 @@ export const useTemplateEditor = () => {
     if (selectedBlock?.id === id) {
       setSelectedBlock(null);
       setSelectedCell(null);
+    }
+    // 履歴に保存
+    if (!isUndoRedoing) {
+      setTimeout(() => saveToHistory(), 0);
     }
   };
 
@@ -337,7 +409,7 @@ export const useTemplateEditor = () => {
       
       // 読み込み時にzIndexと位置・サイズをグリッドに揃える
       const blocksWithZIndex = template.blocks.map((b: any) => {
-        const isTextLike = b.type === "text" || b.type === "titlePlaceholder";
+        const isTextLike = b.type === "text" || b.type === "titlePlaceholder" || b.type === "subtitlePlaceholder";
         const isPlaceholder = b.role === "approval" || b.role === "management";
         
         // グリッドスナップ（snapMode無視、常にグリッドに揃える）
@@ -403,5 +475,11 @@ export const useTemplateEditor = () => {
     setGridSize,
     snapMode,
     setSnapMode,
+
+    // Undo/Redo
+    undo,
+    redo,
+    canUndo: historyIndex > 0,
+    canRedo: historyIndex < history.length - 1,
   };
 };

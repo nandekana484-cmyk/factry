@@ -37,6 +37,10 @@ export default function TemplateCanvas({
         setSelectedCell={editor.setSelectedCell}
         onSaveTemplate={onSaveTemplate}
         onNewTemplate={onNewTemplate}
+        onUndo={editor.undo}
+        onRedo={editor.redo}
+        canUndo={editor.canUndo}
+        canRedo={editor.canRedo}
         // UI状態管理
         paper={editor.paper}
         setPaper={editor.setPaper}

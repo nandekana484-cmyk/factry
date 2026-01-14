@@ -3,10 +3,7 @@
 import FieldPalette from "@/components/FieldPalette";
 
 interface WriterSidebarProps {
-  isSaving: boolean;
   onGoBack: () => void;
-  onSaveDraft: () => void;
-  onSubmitDocument: () => void;
   onAddTextBlock: () => void;
   onAddPage: () => void;
   onAddBlock: (type: string, role?: string) => void;
@@ -21,10 +18,7 @@ interface WriterSidebarProps {
  * Writer左サイドバーの UI を担当
  */
 export default function WriterSidebar({
-  isSaving,
   onGoBack,
-  onSaveDraft,
-  onSubmitDocument,
   onAddTextBlock,
   onAddPage,
   onAddBlock,
@@ -91,22 +85,6 @@ export default function WriterSidebar({
           className="w-full mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
         >
           ← 戻る
-        </button>
-
-        <button
-          onClick={onSaveDraft}
-          className="w-full mb-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          disabled={isSaving}
-        >
-          下書き保存
-        </button>
-
-        <button
-          onClick={onSubmitDocument}
-          className="w-full mb-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-          disabled={isSaving}
-        >
-          提出
         </button>
 
         <button

@@ -214,7 +214,7 @@ export function extractFullText(blocks: any[]): string {
   blocks.forEach((block: any) => {
     if (block.type === "text" && block.label) {
       textParts.push(block.label);
-    } else if (block.type === "titlePlaceholder" && block.value) {
+    } else if ((block.type === "titlePlaceholder" || block.type === "subtitlePlaceholder") && block.value) {
       textParts.push(block.value);
     } else if (block.type === "table" && block.cells) {
       block.cells.forEach((row: any) => {

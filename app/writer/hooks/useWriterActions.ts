@@ -5,24 +5,28 @@ import { useRouter } from "next/navigation";
 
 /**
  * 本文からタイトルを自動抽出する関数
+ * titlePlaceholderがあればそれを優先、なければ最初のテキストから抽出
  */
 const extractTitleFromBlocks = (blocks: any[]): string => {
-  // テキストブロックからテキストを抽出
+  // titlePlaceholderからタイトルを抽出
+  const titleBlock = blocks.find((b) => b.type === "titlePlaceholder");
+  if (titleBlock && titleBlock.value && titleBlock.value.trim()) {
+    return titleBlock.value.trim().slice(0, 40);
+  }
+
+  // titlePlaceholderがないか空の場合、テキストブロックから抽出
   const textBlocks = blocks.filter(
-    (b) => b.type === "text" || b.type === "titlePlaceholder"
+    (b) => b.type === "text" || b.type === "subtitlePlaceholder"
   );
   
-  // すべてのテキストを結合
   const allText = textBlocks
-    .map((b) => b.label || "")
+    .map((b) => (b.type === "text" ? b.label : b.value) || "")
     .join("\n")
     .trim();
   
-  // 最初の非空行を探す
   const lines = allText.split("\n").map((l) => l.trim());
   const firstLine = lines.find((l) => l.length > 0) || "無題";
   
-  // 40文字で切り取る
   return firstLine.slice(0, 40);
 };
 
@@ -38,13 +42,37 @@ export const useWriterActions = (
   const router = useRouter();
 
   const handleSaveDraft = useCallback(() => {
-    // 本文からタイトルを自動抽出
+    // titlePlaceholderからタイトルを自動抽出
     const autoTitle = extractTitleFromBlocks(editor.blocks);
     
-    editor.saveDraft(autoTitle);
+    // ユーザーに名前を入力させる
+    const userTitle = prompt("下書きの名前を入力してください:", autoTitle);
+    
+    if (userTitle === null) {
+      // キャンセルされた
+      return;
+    }
+    
+    const finalTitle = userTitle.trim() || autoTitle;
+    editor.saveDraft(finalTitle);
     setIsDirty(false);
-    alert(`下書きを保存しました: ${autoTitle}`);
+    alert(`下書きを保存しました: ${finalTitle}`);
   }, [editor, setIsDirty]);
+
+  const handleOverwriteDraft = useCallback(() => {
+    if (!editor.currentDocumentId) {
+      // IDがない場合は名前を付けて保存
+      handleSaveDraft();
+      return;
+    }
+
+    // titlePlaceholderからタイトルを自動抽出
+    const autoTitle = extractTitleFromBlocks(editor.blocks);
+    
+    editor.overwriteDraft(autoTitle);
+    setIsDirty(false);
+    alert(`下書きを上書き保存しました: ${autoTitle}`);
+  }, [editor, setIsDirty, handleSaveDraft]);
 
   const handleSubmitDocument = useCallback(async () => {
     // 本文からタイトルを自動抽出
@@ -113,6 +141,7 @@ export const useWriterActions = (
 
   return {
     handleSaveDraft,
+    handleOverwriteDraft,
     handleSubmitDocument,
     handleInsertAIText,
     handleInsertAITable,

@@ -4,6 +4,14 @@ import { useEffect } from "react";
 import TextBlock from "@/components/TextBlock";
 import ShapeBlock from "@/components/ShapeBlock";
 import PlaceholderBlock from "@/components/PlaceholderBlock";
+import {
+  PrinterIcon,
+  DocumentPlusIcon,
+  ArrowUpOnSquareIcon,
+  Cog6ToothIcon,
+  ArrowUturnLeftIcon,
+  ArrowUturnRightIcon,
+} from "@heroicons/react/24/outline";
 
 interface WriterCanvasProps {
   blocks: any[];
@@ -21,6 +29,15 @@ interface WriterCanvasProps {
   paper: string;
   orientation: string;
   currentPage: number;
+  showPropertyBox: boolean;
+  setShowPropertyBox: (show: boolean) => void;
+  onSaveDraft: () => void;
+  onOverwriteDraft: () => void;
+  currentDocumentId: string | null;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 /**
@@ -43,6 +60,15 @@ export default function WriterCanvas({
   paper,
   orientation,
   currentPage,
+  showPropertyBox,
+  setShowPropertyBox,
+  onSaveDraft,
+  onOverwriteDraft,
+  currentDocumentId,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }: WriterCanvasProps) {
   // グローバルクリックリスナーでキャンバス外クリックも選択解除
   useEffect(() => {
@@ -94,6 +120,59 @@ export default function WriterCanvas({
 
   const offsetX = Math.round((width / 2) % gridSize);
   const offsetY = Math.round((height / 2) % gridSize);
+
+  // 印刷プレビュー関数
+  const handlePrint = () => {
+    // 印刷用CSSを動的に追加
+    const styleId = 'dynamic-print-styles';
+    let styleEl = document.getElementById(styleId) as HTMLStyleElement;
+    
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      document.head.appendChild(styleEl);
+    }
+
+    const pageSize = currentOrientation === "portrait" 
+      ? `${currentPaper} portrait` 
+      : `${currentPaper} landscape`;
+
+    // 余白設定: 上・右・下・左 (下のみ5mm、他は0mm)
+    const margin = '0mm 0mm 5mm 0mm';
+
+    styleEl.textContent = `
+      @page {
+        size: ${pageSize};
+        margin: ${margin};
+      }
+
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        
+        .print-area,
+        .print-area * {
+          visibility: visible;
+        }
+        
+        .print-area {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+        }
+        
+        .no-print {
+          display: none !important;
+        }
+      }
+    `;
+
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
 
   return (
     <div className="flex flex-col flex-1 bg-gray-50 overflow-hidden">
@@ -148,10 +227,91 @@ export default function WriterCanvas({
           <option value={1.5}>150%</option>
           <option value={2}>200%</option>
         </select>
+
+        {/* アイコンボタン群 */}
+        <div className="ml-auto flex items-center gap-1 no-print">
+          {/* Undoボタン */}
+          <button
+            onClick={onUndo}
+            disabled={!canUndo}
+            className={`p-2 rounded transition ${
+              canUndo
+                ? "text-gray-700 hover:bg-gray-100"
+                : "text-gray-300 cursor-not-allowed"
+            }`}
+            title="元に戻す (Ctrl+Z)"
+            aria-label="元に戻す"
+          >
+            <ArrowUturnLeftIcon className="w-6 h-6" />
+          </button>
+
+          {/* Redoボタン */}
+          <button
+            onClick={onRedo}
+            disabled={!canRedo}
+            className={`p-2 rounded transition ${
+              canRedo
+                ? "text-gray-700 hover:bg-gray-100"
+                : "text-gray-300 cursor-not-allowed"
+            }`}
+            title="やり直し (Ctrl+Y)"
+            aria-label="やり直し"
+          >
+            <ArrowUturnRightIcon className="w-6 h-6" />
+          </button>
+
+          <div className="border-l h-6 mx-1"></div>
+
+          {/* 印刷プレビューボタン */}
+          <button
+            onClick={handlePrint}
+            className="p-2 text-purple-600 hover:bg-purple-50 rounded transition"
+            title="印刷プレビュー"
+            aria-label="印刷プレビュー"
+          >
+            <PrinterIcon className="w-6 h-6" />
+          </button>
+
+          {/* 上書き保存ボタン（文書IDがある場合のみ表示） */}
+          {currentDocumentId && (
+            <button
+              onClick={onOverwriteDraft}
+              className="p-2 text-orange-600 hover:bg-orange-50 rounded transition"
+              title="現在の下書きを上書き保存"
+              aria-label="上書き保存"
+            >
+              <ArrowUpOnSquareIcon className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* 名前を付けて保存ボタン */}
+          <button
+            onClick={onSaveDraft}
+            className="p-2 text-green-600 hover:bg-green-50 rounded transition"
+            title="名前を付けて保存"
+            aria-label="名前を付けて保存"
+          >
+            <DocumentPlusIcon className="w-6 h-6" />
+          </button>
+
+          {/* プロパティボタン */}
+          <button
+            onClick={() => setShowPropertyBox(!showPropertyBox)}
+            className={`p-2 rounded transition ${
+              showPropertyBox
+                ? "text-blue-600 bg-blue-50"
+                : "text-blue-600 hover:bg-blue-50"
+            }`}
+            title={showPropertyBox ? "プロパティを閉じる" : "プロパティを表示"}
+            aria-label="プロパティ"
+          >
+            <Cog6ToothIcon className="w-6 h-6" />
+          </button>
+        </div>
       </div>
 
       {/* キャンバス */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto print-area">
         <div 
           style={{ 
             padding: "50px",
@@ -187,33 +347,41 @@ export default function WriterCanvas({
             >
               {blocks.map((block: any) => {
                 const isSelected = selectedBlock?.id === block.id;
-                const isTextBlock = ["text", "titlePlaceholder"].includes(block.type);
+                const isTextBlock = ["text", "titlePlaceholder", "subtitlePlaceholder"].includes(block.type);
                 const isPlaceholder = ["approvalStampPlaceholder", "managementNumberPlaceholder"].includes(block.type);
 
-                return isTextBlock ? (
-                  <TextBlock
-                    key={block.id}
-                    block={block}
-                    isSelected={isSelected}
-                    selectedBlock={selectedBlock}
-                    updateBlock={onUpdateBlock}
-                    selectBlock={onSelectBlock}
-                    snap={snap}
-                    isReadOnly={false}
-                    isTextEditable={true}
-                  />
-                ) : isPlaceholder ? (
-                  <PlaceholderBlock
-                    key={block.id}
-                    block={block}
-                    isSelected={isSelected}
-                    updateBlock={onUpdateBlock}
-                    selectBlock={onSelectBlock}
-                    snap={snap}
-                    isReadOnly={true}
-                    currentPage={currentPage}
-                  />
-                ) : (
+                if (isTextBlock) {
+                  return (
+                    <TextBlock
+                      key={block.id}
+                      block={block}
+                      isSelected={isSelected}
+                      selectedBlock={selectedBlock}
+                      updateBlock={onUpdateBlock}
+                      selectBlock={onSelectBlock}
+                      snap={snap}
+                      isReadOnly={false}
+                      isTextEditable={true}
+                    />
+                  );
+                }
+                
+                if (isPlaceholder) {
+                  return (
+                    <PlaceholderBlock
+                      key={block.id}
+                      block={block}
+                      isSelected={isSelected}
+                      updateBlock={onUpdateBlock}
+                      selectBlock={onSelectBlock}
+                      snap={snap}
+                      isReadOnly={true}
+                      currentPage={currentPage}
+                    />
+                  );
+                }
+                
+                return (
                   <ShapeBlock
                     key={block.id}
                     block={block}
@@ -222,7 +390,7 @@ export default function WriterCanvas({
                     updateBlock={onUpdateBlock}
                     selectBlock={onSelectBlock}
                     snap={snap}
-                    isReadOnly={true}
+                    isReadOnly={block.isTemplateBlock === true}
                   />
                 );
               })}

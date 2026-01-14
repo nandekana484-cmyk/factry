@@ -13,11 +13,12 @@ export const useWriterDeleteKey = (
 ) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 編集中のブロックではキー操作を無視
+      if (selectedBlock?.isEditing) {
+        return;
+      }
+
       if (e.key === "Delete" && selectedBlock) {
-        // 編集中のブロックは削除しない
-        if (selectedBlock.isEditing) {
-          return;
-        }
         e.preventDefault();
         deleteBlock(selectedBlock.id);
         setIsDirty(true);
