@@ -1,5 +1,8 @@
 "use client";
 
+import { useRef, useState } from "react";
+import ImageCropModal from "./ImageCropModal";
+
 interface PropertyEditorProps {
   block: any;
   onUpdate: (id: string, updated: any) => void;
@@ -13,6 +16,9 @@ export default function PropertyEditor({
   selectedCell,
   onSelectCell,
 }: PropertyEditorProps) {
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+
   if (!block) {
     return (
       <div className="h-full bg-white text-gray-400 text-sm overflow-y-auto">
@@ -23,6 +29,27 @@ export default function PropertyEditor({
 
   const handleChange = (key: string, value: any) => {
     onUpdate(block.id, { [key]: value });
+  };
+
+  // 画像選択ハンドラー
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("画像ファイルを選択してください");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const imageData = event.target?.result as string;
+      if (imageData) {
+        onUpdate(block.id, { src: imageData });
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   // --- テーブル操作用関数 ---
@@ -428,7 +455,103 @@ export default function PropertyEditor({
             </select>
           </div>
         )}
+
+        {/* 管理番号プレースホルダー */}
+        {block.type === "managementNumberPlaceholder" && (
+          <div className="mt-2">
+            <div className="text-xs text-gray-600 mb-2">
+              管理番号プレースホルダー
+            </div>
+            <div className="text-[10px] text-gray-400">
+              ライターページで自動的に管理番号が入力されます
+            </div>
+          </div>
+        )}
+
+        {/* 画像ブロック */}
+        {block.type === "image" && (
+          <div className="mt-2 space-y-3">
+            <div>
+              <label className="block text-xs text-gray-600 font-semibold mb-2">
+                画像
+              </label>
+              
+              {/* 現在の画像プレビュー */}
+              {block.src && (
+                <div className="mb-3 border rounded p-2 bg-gray-50">
+                  <img
+                    src={block.src}
+                    alt="プレビュー"
+                    className="w-full h-32 object-contain"
+                  />
+                </div>
+              )}
+              
+              {/* 画像変更ボタン */}
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm font-medium"
+              >
+                {block.src ? "画像を変更" : "画像を選択"}
+              </button>
+              
+              {/* トリミングボタン */}
+              {block.src && (
+                <button
+                  onClick={() => setShowCropModal(true)}
+                  className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition text-sm font-medium mt-2"
+                >
+                  トリミング
+                </button>
+              )}
+              
+              {/* 非表示のファイル入力 */}
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+            </div>
+            
+            {/* 画像のボーダー設定 */}
+            <div>
+              <label className="block text-xs text-gray-500">枠線の色</label>
+              <input
+                type="color"
+                value={block.borderColor || "#cccccc"}
+                onChange={(e) => handleChange("borderColor", e.target.value)}
+                className="w-full h-8 border rounded cursor-pointer"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs text-gray-500">枠線の太さ</label>
+              <input
+                type="number"
+                value={block.borderWidth || 1}
+                onChange={(e) => handleChange("borderWidth", Number(e.target.value))}
+                className="w-full border rounded text-sm px-2 py-1"
+                min="0"
+                max="20"
+              />
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* トリミングモーダル */}
+      {showCropModal && block.src && (
+        <ImageCropModal
+          imageSrc={block.src}
+          onComplete={(croppedImage) => {
+            onUpdate(block.id, { src: croppedImage });
+            setShowCropModal(false);
+          }}
+          onCancel={() => setShowCropModal(false)}
+        />
+      )}
     </div>
   );
 }

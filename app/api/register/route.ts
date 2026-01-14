@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { findUserByEmail, createUserSync } from '../../../lib/db'
+import { prisma } from '@/lib/prisma'
+import bcrypt from 'bcryptjs'
 
 export async function POST(req: Request) {
   try {
@@ -12,13 +13,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'email and password are required' }, { status: 400 })
     }
 
-    const existing = findUserByEmail(email)
+    // Prismaで既存ユーザーをチェック
+    const existing = await prisma.user.findUnique({
+      where: { email },
+    })
+
     if (existing) {
       return NextResponse.json({ error: 'User already exists' }, { status: 409 })
     }
 
-    const result = createUserSync(email, password, role ?? 'user')
-    return NextResponse.json({ ok: true, id: result.lastInsertRowid }, { status: 201 })
+    // パスワードをハッシュ化
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    // Prismaでユーザーを作成
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        role: role ?? 'user',
+      },
+    })
+
+    return NextResponse.json({ ok: true, id: user.id }, { status: 201 })
   } catch (err) {
     console.error('register error', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

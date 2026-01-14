@@ -7,6 +7,7 @@ interface WriterSidebarProps {
   onAddTextBlock: () => void;
   onAddPage: () => void;
   onAddBlock: (type: string, role?: string) => void;
+  onAddImage?: (imageData: string) => void;
   templates: any[];
   draftDocuments: any[];
   onLoadTemplate: (templateId: string) => void;
@@ -22,6 +23,7 @@ export default function WriterSidebar({
   onAddTextBlock,
   onAddPage,
   onAddBlock,
+  onAddImage,
   templates,
   draftDocuments,
   onLoadTemplate,
@@ -97,7 +99,10 @@ export default function WriterSidebar({
 
       {/* 中部: FieldPalette */}
       <div className="flex-1 overflow-y-auto">
-        <FieldPalette onAdd={onAddBlock} />
+        <FieldPalette 
+          onAdd={onAddBlock}
+          onAddImage={onAddImage}
+        />
       </div>
     </div>
   );

@@ -103,6 +103,21 @@
     border: none !important;
   }
 
+  /* SVG要素とマーカーを確実に印刷 */
+  svg,
+  svg *,
+  marker,
+  marker * {
+    visibility: visible !important;
+  }
+
+  /* 図形のボーダーと色を確実に印刷 */
+  [data-block-id] {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
   /* キャンバスを全画面表示 */
   .print-area {
     overflow: visible !important;

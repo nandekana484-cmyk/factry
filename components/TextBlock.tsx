@@ -150,7 +150,7 @@ export default function TextBlock({
         {/* --- テキスト --- */}
         {block.type === "text" && (
           <div
-            contentEditable={canEditText}
+            contentEditable={canEditText && block.isEditing}
             suppressContentEditableWarning
             className="w-full h-full"
             style={{
@@ -162,16 +162,11 @@ export default function TextBlock({
               outline: "none",
               width: "100%",
               height: "100%",
-              pointerEvents: canEditText ? "auto" : "none",
+              pointerEvents: canEditText && block.isEditing ? "auto" : "none",
               cursor: canEditText ? "text" : "default",
               whiteSpace: "pre-wrap",
               overflowWrap: "break-word",
               padding: "4px",
-            }}
-            onFocus={() => {
-              if (canEditText) {
-                updateBlock(block.id, { isEditing: true });
-              }
             }}
             onBlur={(e) =>
               updateBlock(block.id, {
@@ -193,7 +188,7 @@ export default function TextBlock({
         {/* --- タイトルプレースホルダー --- */}
         {block.type === "titlePlaceholder" && (
           <div
-            contentEditable={canEditText}
+            contentEditable={canEditText && block.isEditing}
             suppressContentEditableWarning
             className="w-full h-full"
             style={{
@@ -216,13 +211,8 @@ export default function TextBlock({
                     ? "flex-end"
                     : "flex-start",
               padding: "8px",
-              pointerEvents: canEditText ? "auto" : "none",
+              pointerEvents: canEditText && block.isEditing ? "auto" : "none",
               cursor: canEditText ? "text" : "default",
-            }}
-            onFocus={() => {
-              if (canEditText) {
-                updateBlock(block.id, { isEditing: true });
-              }
             }}
             onBlur={(e) => {
               // 編集終了時に全ページのタイトルを同期
@@ -245,7 +235,7 @@ export default function TextBlock({
         {/* --- サブタイトルプレースホルダー --- */}
         {block.type === "subtitlePlaceholder" && (
           <div
-            contentEditable={canEditText}
+            contentEditable={canEditText && block.isEditing}
             suppressContentEditableWarning
             className="w-full h-full"
             style={{
@@ -268,13 +258,8 @@ export default function TextBlock({
                     ? "flex-end"
                     : "flex-start",
               padding: "8px",
-              pointerEvents: canEditText ? "auto" : "none",
+              pointerEvents: canEditText && block.isEditing ? "auto" : "none",
               cursor: canEditText ? "text" : "default",
-            }}
-            onFocus={() => {
-              if (canEditText) {
-                updateBlock(block.id, { isEditing: true });
-              }
             }}
             onBlur={(e) => {
               // 編集終了時に全ページのサブタイトルを同期

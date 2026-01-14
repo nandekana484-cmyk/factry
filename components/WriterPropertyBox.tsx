@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import ImageCropModal from "./ImageCropModal";
 
 interface WriterPropertyBoxProps {
   selectedBlock: any;
@@ -16,7 +17,9 @@ export default function WriterPropertyBox({
   const [position, setPosition] = useState({ x: window.innerWidth - 350, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [showCropModal, setShowCropModal] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // ドラッグ開始
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -356,12 +359,91 @@ export default function WriterPropertyBox({
           </div>
         </div>
 
+        {/* 画像ブロック用 */}
+        {isImageBlock && (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                画像
+              </label>
+              
+              {/* 現在の画像プレビュー */}
+              {selectedBlock.src && (
+                <div className="mb-3 border rounded p-2 bg-gray-50">
+                  <img
+                    src={selectedBlock.src}
+                    alt="プレビュー"
+                    className="w-full h-32 object-contain"
+                  />
+                </div>
+              )}
+              
+              {/* 画像変更ボタン */}
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm font-medium"
+              >
+                {selectedBlock.src ? "画像を変更" : "画像を選択"}
+              </button>
+              
+              {/* トリミングボタン */}
+              {selectedBlock.src && (
+                <button
+                  onClick={() => setShowCropModal(true)}
+                  className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition text-sm font-medium mt-2"
+                >
+                  トリミング
+                </button>
+              )}
+              
+              {/* 非表示のファイル入力 */}
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+
+                  if (!file.type.startsWith("image/")) {
+                    alert("画像ファイルを選択してください");
+                    return;
+                  }
+
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    const imageData = event.target?.result as string;
+                    if (imageData) {
+                      onUpdateBlock(selectedBlock.id, { src: imageData });
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+                className="hidden"
+              />
+            </div>
+          </div>
+        )}
+
         {selectedBlock.isTemplateBlock && (
           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
             ⚠️ テンプレート由来のブロックは移動・サイズ変更できません
           </div>
         )}
       </div>
+
+      {/* トリミングモーダル */}
+      {showCropModal && selectedBlock.src && (
+        <ImageCropModal
+          imageSrc={selectedBlock.src}
+          onComplete={(croppedImage) => {
+            onUpdateBlock(selectedBlock.id, { src: croppedImage });
+            setShowCropModal(false);
+          }}
+          onCancel={() => setShowCropModal(false)}
+        />
+      )}
     </div>
   );
 }

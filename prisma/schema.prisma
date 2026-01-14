@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../data/database.sqlite"
+}
+
+model User {
+  id         Int       @id @default(autoincrement())
+  email      String    @unique(map: "sqlite_autoindex_users_1")
+  password   String
+  role       String
+  created_at DateTime? @default(now())
+
+  // リレーション
+  createdDocuments   Document[]         @relation("DocumentCreator")
+  approvalRequests   ApprovalRequest[]  @relation("ApprovalRequester")
+  approvalHistories  ApprovalHistory[]
+
+  @@map("users")
+}
+
+model Document {
+  id          Int       @id @default(autoincrement())
+  title       String
+  status      String    @default("draft") // draft, pending, approved
+  creator_id  Int
+  template_id Int?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  // リレーション
+  creator           User              @relation("DocumentCreator", fields: [creator_id], references: [id])
+  blocks            DocumentBlock[]
+  approvalRequest   ApprovalRequest?
+  approvalHistories ApprovalHistory[]
+
+  @@map("documents")
+}
+
+model DocumentBlock {
+  id          Int     @id @default(autoincrement())
+  document_id Int
+  type        String  // text, title, shape, image, etc.
+  content     String  // JSON string
+  position_x  Float
+  position_y  Float
+  width       Float
+  height      Float
+  sort_order  Int     @default(0)
+
+  // リレーション
+  document Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@map("document_blocks")
+}
+
+model ApprovalRequest {
+  id           Int      @id @default(autoincrement())
+  document_id  Int      @unique
+  requester_id Int
+  requested_at DateTime @default(now())
+  comment      String?
+
+  // リレーション
+  document  Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  requester User     @relation("ApprovalRequester", fields: [requester_id], references: [id])
+
+  @@map("approval_requests")
+}
+
+model ApprovalHistory {
+  id          Int      @id @default(autoincrement())
+  document_id Int
+  user_id     Int
+  action      String   // approved, rejected, withdrawn, revised, submitted
+  comment     String?
+  created_at  DateTime @default(now())
+
+  // リレーション
+  document Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [user_id], references: [id])
+
+  @@map("approval_history")
+}

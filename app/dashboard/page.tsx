@@ -1,111 +1,133 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { LogoutButton } from "./LogoutButton";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
   const role = cookieStore.get("role")?.value;
 
-  // 仮の統計データ（後で DB と接続可能）
-  const stats = {
-    templates: 12,
-    pending: 3,
-    completed: 8,
-  };
-
-  // ロール別に表示するメニュー
+  // ロール別メニュー
   const menuItems = [
     {
       role: ["admin", "approver", "user"],
       title: "文書管理",
       href: "/dashboard/documents",
       description: "フォルダー管理と文書一覧",
+      icon: "📄",
+      color: "blue",
+    },
+    {
+      role: ["admin", "approver", "user"],
+      title: "承認フロー",
+      href: "/documents",
+      description: "文書の承認・差し戻し",
+      icon: "📋",
+      color: "indigo",
     },
     {
       role: ["admin", "approver", "user"],
       title: "AI検索",
       href: "/dashboard/search",
       description: "文書を検索",
+      icon: "🤖",
+      color: "green",
     },
     {
       role: ["admin", "approver"],
       title: "管理者ページ",
       href: "/admin",
+      description: "管理者向けメニュー",
+      icon: "🛠️",
+      color: "purple",
     },
     {
       role: ["admin", "approver"],
       title: "承認者ページ",
       href: "/approver",
+      description: "承認作業を行うページ",
+      icon: "✔️",
+      color: "yellow",
     },
     {
       role: ["admin", "approver", "user"],
       title: "ライターページ",
-      href: "/writer",
+      href: "/writer/menu",
+      description: "文書作成・編集メニュー",
+      icon: "✏️",
+      color: "pink",
     },
   ];
 
-  // 現在のロールに合うものだけ表示
   const visibleItems = menuItems.filter((item) =>
     item.role.includes(role || "")
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
       {/* ヘッダー */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">ダッシュボード</h1>
+        <h1 className="text-4xl font-bold text-gray-900">ダッシュボード</h1>
         <LogoutButton />
       </div>
 
-      <p className="text-gray-600 mb-8">あなたの権限: {role}</p>
+      <p className="text-gray-600 mb-10">あなたの権限: {role}</p>
 
-      {/* 統計カード */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <Card className="bg-white shadow hover:shadow-lg transition">
-          <CardHeader>
-            <CardTitle>テンプレート数</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{stats.templates}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white shadow hover:shadow-lg transition">
-          <CardHeader>
-            <CardTitle>承認待ち</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white shadow hover:shadow-lg transition">
-          <CardHeader>
-            <CardTitle>完了済み</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-green-600">{stats.completed}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* メニューカード */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* メニューカード（WriterMenu と同じスタイル） */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {visibleItems.map((item) => (
-          <Card
-            key={item.href}
-            className="hover:shadow-xl hover:-translate-y-1 transition bg-white"
-          >
-            <CardHeader>
-              <CardTitle>{item.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Link href={item.href} className="text-blue-600 underline">
-                {item.title}へ
-              </Link>
-            </CardContent>
-          </Card>
+          <Link key={item.href} href={item.href} className="group block">
+            <div
+              className={`
+                h-full rounded-xl p-6 transition-all duration-300
+                hover:shadow-2xl hover:-translate-y-2
+                bg-gradient-to-br from-${item.color}-50 to-white
+                border-2 border-${item.color}-100 hover:border-${item.color}-300
+              `}
+            >
+              <div className="flex items-center gap-4">
+                <div
+                  className={`
+                    w-16 h-16 rounded-xl flex items-center justify-center text-3xl
+                    bg-gradient-to-br from-${item.color}-400 to-${item.color}-600
+                    shadow-lg group-hover:scale-110 transition-transform
+                  `}
+                >
+                  {item.icon}
+                </div>
+
+                <div className="flex-1">
+                  <p
+                    className={`text-2xl font-bold text-${item.color}-900 group-hover:text-${item.color}-700 transition`}
+                  >
+                    {item.title}
+                  </p>
+                  {item.description && (
+                    <p className="text-gray-600 text-sm mt-1">
+                      {item.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* 矢印アニメーション */}
+              <div className="mt-4 flex items-center text-sm font-semibold text-blue-600 group-hover:text-blue-700">
+                <span>開く</span>
+                <svg
+                  className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </div>
+            </div>
+          </Link>
         ))}
       </div>
     </div>

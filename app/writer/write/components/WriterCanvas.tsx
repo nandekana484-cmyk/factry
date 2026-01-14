@@ -153,7 +153,15 @@ export default function WriterCanvas({
         
         .print-area,
         .print-area * {
-          visibility: visible;
+          visibility: visible !important;
+        }
+        
+        /* SVG要素とマーカーを確実に表示 */
+        svg,
+        svg *,
+        marker,
+        marker * {
+          visibility: visible !important;
         }
         
         .print-area {
@@ -165,6 +173,12 @@ export default function WriterCanvas({
         
         .no-print {
           display: none !important;
+        }
+        
+        /* 図形のボーダーを確実に印刷 */
+        [data-block-id] {
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
         }
       }
     `;

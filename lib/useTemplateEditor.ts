@@ -183,7 +183,9 @@ export const useTemplateEditor = () => {
       case "image":
         block = {
           ...base,
-          imageUrl: "",
+          src: "",
+          borderColor: "#cccccc",
+          borderWidth: 1,
           editable: false,
         };
         break;
@@ -251,6 +253,29 @@ export const useTemplateEditor = () => {
 
     setBlocks((prev) => [...prev, block]);
     setSelectedBlock(block);
+  };
+
+  // 画像ブロックを追加（Base64データ付き）
+  const addImageBlock = (imageData: string, x: number = 100, y: number = 100) => {
+    const block: any = {
+      id: nanoid(),
+      type: "image",
+      x,
+      y,
+      width: 200,
+      height: 150,
+      src: imageData,
+      borderColor: "#cccccc",
+      borderWidth: 1,
+      isEditing: false,
+      rotate: 0,
+      zIndex: 100,
+      editable: false,
+    };
+
+    setBlocks((prev) => [...prev, block]);
+    setSelectedBlock(block);
+    return block;
   };
 
   // HTMLテーブルからテーブルブロックを追加
@@ -446,6 +471,7 @@ export const useTemplateEditor = () => {
     blocks,
     addBlock,
     addTableBlock,
+    addImageBlock,
     updateBlock,
     selectedBlock,
     selectBlock,

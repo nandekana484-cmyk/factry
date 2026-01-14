@@ -403,8 +403,8 @@ export default function ShapeBlock({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              border: `${block.borderWidth || 1}px solid ${block.borderColor || "#ccc"}`,
-              backgroundColor: "#f5f5f5",
+              border: "none",
+              backgroundColor: "transparent",
               pointerEvents: "none",
             }}
           >
