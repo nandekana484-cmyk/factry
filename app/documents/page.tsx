@@ -9,6 +9,7 @@ interface Document {
   status: string;
   creator: {
     id: number;
+    name?: string;
     email: string;
   };
   blockCount: number;
@@ -147,7 +148,7 @@ export default function DocumentsPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span>作成者: {doc.creator.email}</span>
+                  <span>作成者: {doc.creator.name || doc.creator.email}</span>
                   <span>•</span>
                   <span>ブロック数: {doc.blockCount}</span>
                   <span>•</span>

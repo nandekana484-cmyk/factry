@@ -41,7 +41,7 @@ export const useWriterActions = (
 ) => {
   const router = useRouter();
 
-  const handleSaveDraft = useCallback(() => {
+  const handleSaveDraft = useCallback(async () => {
     // titlePlaceholderからタイトルを自動抽出
     const autoTitle = extractTitleFromBlocks(editor.blocks);
     
@@ -54,41 +54,139 @@ export const useWriterActions = (
     }
     
     const finalTitle = userTitle.trim() || autoTitle;
-    editor.saveDraft(finalTitle);
-    setIsDirty(false);
-    alert(`下書きを保存しました: ${finalTitle}`);
-  }, [editor, setIsDirty]);
+    
+    setIsSaving(true);
+    try {
+      // Prisma APIで下書き保存
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: finalTitle,
+          blocks: editor.blocks,
+          status: "draft",
+        }),
+      });
 
-  const handleOverwriteDraft = useCallback(() => {
+      if (!response.ok) {
+        throw new Error("Failed to save draft");
+      }
+
+      const { document } = await response.json();
+      
+      // currentDocumentIdを更新（上書き保存用）
+      editor.setCurrentDocumentId(document.id);
+      
+      setIsDirty(false);
+      setIsSaving(false);
+      alert(`下書きを保存しました: ${finalTitle}`);
+    } catch (error) {
+      console.error("下書き保存エラー:", error);
+      alert("下書きの保存に失敗しました");
+      setIsSaving(false);
+    }
+  }, [editor, setIsDirty, setIsSaving]);
+
+  const handleOverwriteDraft = useCallback(async () => {
     if (!editor.currentDocumentId) {
       // IDがない場合は名前を付けて保存
-      handleSaveDraft();
+      await handleSaveDraft();
       return;
     }
 
     // titlePlaceholderからタイトルを自動抽出
     const autoTitle = extractTitleFromBlocks(editor.blocks);
     
-    editor.overwriteDraft(autoTitle);
-    setIsDirty(false);
-    alert(`下書きを上書き保存しました: ${autoTitle}`);
-  }, [editor, setIsDirty, handleSaveDraft]);
+    setIsSaving(true);
+    try {
+      // Prisma APIで上書き保存
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: autoTitle,
+          blocks: editor.blocks,
+          status: "draft",
+          documentId: editor.currentDocumentId,
+        }),
+      });
 
-  const handleSubmitDocument = useCallback(async () => {
+      if (!response.ok) {
+        throw new Error("Failed to overwrite draft");
+      }
+
+      setIsDirty(false);
+      setIsSaving(false);
+      alert(`下書きを上書き保存しました: ${autoTitle}`);
+    } catch (error) {
+      console.error("上書き保存エラー:", error);
+      alert("上書き保存に失敗しました");
+      setIsSaving(false);
+    }
+  }, [editor, setIsDirty, setIsSaving, handleSaveDraft]);
+
+  const handleSubmitDocument = useCallback(async (folderId?: number, checkerId?: number, approverId?: number) => {
     // 本文からタイトルを自動抽出
     const autoTitle = extractTitleFromBlocks(editor.blocks);
     
+    if (!checkerId || !approverId) {
+      alert("確認者と承認者を選択してください");
+      return;
+    }
+    
     setIsSaving(true);
     try {
-      editor.submitDocument(autoTitle);
+      // 1. 下書きとして保存（localStorage）
+      const savedDoc = editor.submitDocument(autoTitle, folderId);
+      
+      // 2. Prisma APIで文書を作成
+      const createResponse = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: autoTitle,
+          blocks: editor.blocks,
+        }),
+      });
+
+      if (!createResponse.ok) {
+        throw new Error("Failed to create document");
+      }
+
+      const { document } = await createResponse.json();
+
+      // 3. 承認申請（submit API を呼び出し）
+      const submitResponse = await fetch("/api/documents/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documentId: document.id,
+          folderId: folderId,
+          checkerId: checkerId,
+          approverId: approverId,
+          comment: `文書を提出しました: ${autoTitle}`,
+        }),
+      });
+
+      if (!submitResponse.ok) {
+        throw new Error("Failed to submit document");
+      }
+
+      const result = await submitResponse.json();
+      
       setIsDirty(false);
-      setTimeout(() => {
-        setIsSaving(false);
-        alert(`ドキュメントを提出しました: ${autoTitle}`);
-        router.push("/dashboard/documents");
-      }, 1000);
+      setIsSaving(false);
+      
+      // 管理番号が生成された場合は表示
+      const message = result.managementNumber
+        ? `ドキュメントを提出しました\n管理番号: ${result.managementNumber}`
+        : `ドキュメントを提出しました: ${autoTitle}`;
+      
+      alert(message);
+      router.push("/dashboard/documents");
     } catch (error) {
       console.error("提出エラー:", error);
+      alert("ドキュメントの提出に失敗しました");
       setIsSaving(false);
     }
   }, [editor, setIsDirty, setIsSaving, router]);

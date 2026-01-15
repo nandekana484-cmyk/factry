@@ -14,6 +14,7 @@ async function main() {
     where: { email: 'writer@example.com' },
     update: {},
     create: {
+      name: '作成者',
       email: 'writer@example.com',
       password: writerPassword,
       role: 'user',
@@ -24,6 +25,7 @@ async function main() {
     where: { email: 'approver@example.com' },
     update: {},
     create: {
+      name: '承認者',
       email: 'approver@example.com',
       password: approverPassword,
       role: 'approver',
@@ -31,6 +33,30 @@ async function main() {
   });
 
   console.log('Users created:', { writer, approver });
+
+  // フォルダを作成
+  const wiFolder = await (prisma as any).folder.create({
+    data: {
+      name: '作業指示書',
+      code: 'WI',
+    },
+  });
+
+  const manualFolder = await (prisma as any).folder.create({
+    data: {
+      name: 'マニュアル',
+      code: 'MANUAL',
+    },
+  });
+
+  const generalFolder = await (prisma as any).folder.create({
+    data: {
+      name: '一般文書',
+      code: 'GENERAL',
+    },
+  });
+
+  console.log('Folders created:', { wiFolder, manualFolder, generalFolder });
 
   // サンプル文書を作成
   const draftDoc = await prisma.document.create({

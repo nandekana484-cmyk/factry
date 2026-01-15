@@ -14,11 +14,20 @@ interface ChatMessage {
   };
 }
 
+interface Folder {
+  id: number;
+  name: string;
+  code: string;
+  _count?: {
+    documents: number;
+  };
+}
+
 interface AIChatProps {
   onInsertText: (text: string) => void;
   onInsertTable: (cells: any[][]) => void;
   blocks: any[];
-  onSubmit: () => void;
+  onSubmit: (folderId?: number, checkerId?: number, approverId?: number) => void;
   isSaving: boolean;
 }
 
@@ -32,12 +41,49 @@ export default function AIChat({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | undefined>(undefined);
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedCheckerId, setSelectedCheckerId] = useState<number | undefined>(undefined);
+  const [selectedApproverId, setSelectedApproverId] = useState<number | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // メッセージが追加されたらスクロール
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // フォルダ一覧を取得
+  useEffect(() => {
+    const fetchFolders = async () => {
+      try {
+        const response = await fetch("/api/folders");
+        if (response.ok) {
+          const data = await response.json();
+          setFolders(data.folders || []);
+        }
+      } catch (error) {
+        console.error("フォルダ取得エラー:", error);
+      }
+    };
+    fetchFolders();
+  }, []);
+
+  // ユーザー一覧を取得
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch("/api/users");
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data.users || []);
+        }
+      } catch (error) {
+        console.error("ユーザー取得エラー:", error);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -205,14 +251,82 @@ export default function AIChat({
         </div>
 
         {/* 提出ボタン */}
-        <div className="mt-4 pt-4 border-t">
+        <div className="mt-4 pt-4 border-t space-y-3">
+          {/* フォルダ選択 */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              フォルダを選択
+            </label>
+            <select
+              value={selectedFolderId || ""}
+              onChange={(e) => setSelectedFolderId(e.target.value ? Number(e.target.value) : undefined)}
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="">フォルダなし</option>
+              {folders.map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.name} ({folder.code})
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              フォルダを選択すると管理番号が自動生成されます
+            </p>
+          </div>
+
+          {/* 確認者選択 */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              確認者 *
+            </label>
+            <select
+              value={selectedCheckerId || ""}
+              onChange={(e) => setSelectedCheckerId(e.target.value ? Number(e.target.value) : undefined)}
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              required
+            >
+              <option value="">確認者を選択してください</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} ({user.email})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 承認者選択 */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              承認者 *
+            </label>
+            <select
+              value={selectedApproverId || ""}
+              onChange={(e) => setSelectedApproverId(e.target.value ? Number(e.target.value) : undefined)}
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              required
+            >
+              <option value="">承認者を選択してください</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} ({user.email})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 提出ボタン */}
           <button
-            onClick={onSubmit}
-            disabled={isSaving}
+            onClick={() => onSubmit(selectedFolderId, selectedCheckerId, selectedApproverId)}
+            disabled={isSaving || !selectedCheckerId || !selectedApproverId}
             className="w-full px-4 py-3 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSaving ? "提出中..." : "ドキュメントを提出"}
           </button>
+          {(!selectedCheckerId || !selectedApproverId) && (
+            <p className="text-xs text-red-500">
+              確認者と承認者を選択してください
+            </p>
+          )}
         </div>
       </div>
     </div>

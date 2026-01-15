@@ -1,19 +1,34 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 
 // 承認履歴取得
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const documentId = parseInt(params.id);
+    await requireAuth();
+    const { id } = await params;
+    const documentId = parseInt(id);
+
+    // 文書の存在確認
+    const document = await prisma.document.findUnique({
+      where: { id: documentId },
+    });
+
+    if (!document) {
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 }
+      );
+    }
 
     const history = await prisma.approvalHistory.findMany({
       where: { document_id: documentId },
       include: {
         user: {
-          select: { id: true, email: true, role: true },
+          select: { id: true, name: true, email: true, role: true },
         },
       },
       orderBy: { created_at: "desc" },
@@ -29,8 +44,13 @@ export async function GET(
         user: h.user,
       })),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get approval history error:", error);
+
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     return NextResponse.json(
       { error: "Failed to get approval history" },
       { status: 500 }

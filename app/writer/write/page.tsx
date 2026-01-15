@@ -42,6 +42,36 @@ export default function WriterPage() {
     setDraftDocuments(drafts);
   }, []);
 
+  // URLパラメータからdocumentIdを取得して文書を読み込む
+  const documentId = searchParams.get("documentId");
+  useEffect(() => {
+    if (documentId) {
+      const loadDocument = async () => {
+        try {
+          const response = await fetch(`/api/documents/${documentId}`);
+          if (response.ok) {
+            const data = await response.json();
+            const doc = data.document;
+            
+            // 文書データを editor に読み込む
+            editor.setAllBlocks(doc.blocks || []);
+            editor.setCurrentDocumentId(doc.id);
+            
+            console.log("文書を読み込みました:", doc.title);
+          } else {
+            console.error("文書の読み込みに失敗しました");
+            alert("文書の読み込みに失敗しました");
+          }
+        } catch (error) {
+          console.error("文書読み込みエラー:", error);
+          alert("文書の読み込みに失敗しました");
+        }
+      };
+      loadDocument();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentId]);
+
   // URLパラメータからテンプレートIDを取得して読み込む
   const templateId = searchParams.get("templateId");
   useWriterLoader(templateId, editor.loadTemplate);

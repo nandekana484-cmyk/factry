@@ -1,3 +1,17 @@
+/**
+ * ⚠️ 注意: このファイルは LocalStorage ベースのレガシー実装です
+ * 
+ * 新しい文書管理システムは Prisma + SQLite ベースに移行しています。
+ * このファイルは /dashboard/documents などで参照されていますが、
+ * 新規機能は Prisma ベースの API (/api/documents, /api/folders) を使用してください。
+ * 
+ * Prisma ベースのシステム:
+ * - Schema: prisma/schema.prisma の Document, Folder モデル
+ * - API: /api/documents, /api/folders
+ * - 管理番号: フォルダコード + 連番（例: WI-001, MANUAL-015）
+ * - 生成タイミング: submit API で生成
+ */
+
 export interface Folder {
   id: string;
   name: string;

@@ -42,6 +42,15 @@ export async function POST(req: Request) {
       path: "/",
     });
 
+    res.cookies.set({
+      name: "userId",
+      value: user.id.toString(),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
+
     return res;
   } catch (error) {
     console.error("Login error:", error);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 
 // 文書一覧取得
 export async function GET(req: Request) {
@@ -22,12 +23,28 @@ export async function GET(req: Request) {
       where,
       include: {
         creator: {
-          select: { id: true, email: true, role: true },
+          select: { id: true, name: true, email: true, role: true },
         },
         approvalRequest: {
           include: {
             requester: {
-              select: { id: true, email: true },
+              select: { id: true, name: true, email: true },
+            },
+            checker: {
+              select: { id: true, name: true, email: true },
+            },
+            approver: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        } as any,
+        revisionHistories: {
+          where: { approved_at: { not: null } },
+          orderBy: { approved_at: "desc" },
+          take: 1,
+          include: {
+            approvedBy: {
+              select: { id: true, name: true },
             },
           },
         },
@@ -44,17 +61,125 @@ export async function GET(req: Request) {
         id: doc.id,
         title: doc.title,
         status: doc.status,
-        creator: doc.creator,
-        approvalRequest: doc.approvalRequest,
-        blockCount: doc._count.blocks,
-        createdAt: doc.created_at,
-        updatedAt: doc.updated_at,
+        managementNumber: (doc as any).management_number,
+        creator: (doc as any).creator,
+        approvalRequest: (doc as any).approvalRequest,
+        latestRevision: (doc as any).revisionHistories[0] ? {
+          id: (doc as any).revisionHistories[0].id,
+          managementNumber: (doc as any).revisionHistories[0].management_number,
+          revisionSymbol: (doc as any).revisionHistories[0].revision_symbol,
+          approvedBy: (doc as any).revisionHistories[0].approvedBy,
+          approvedAt: (doc as any).revisionHistories[0].approved_at,
+        } : null,
+        blockCount: (doc as any)._count.blocks,
+        createdAt: (doc as any).created_at,
+        updatedAt: (doc as any).updated_at,
       })),
     });
   } catch (error) {
     console.error("Get documents error:", error);
     return NextResponse.json(
       { error: "Failed to get documents" },
+      { status: 500 }
+    );
+  }
+}
+
+// 文書作成・保存（下書き保存または新規作成）
+export async function POST(req: Request) {
+  try {
+    const user = await requireAuth();
+    const { title, blocks, status = "draft", documentId } = await req.json();
+
+    if (!title) {
+      return NextResponse.json(
+        { error: "title is required" },
+        { status: 400 }
+      );
+    }
+
+    // 既存文書の更新（上書き保存）
+    if (documentId) {
+      const existingDoc = await prisma.document.findUnique({
+        where: { id: documentId },
+      });
+
+      if (!existingDoc) {
+        return NextResponse.json(
+          { error: "Document not found" },
+          { status: 404 }
+        );
+      }
+
+      if (existingDoc.creator_id !== user.id) {
+        return NextResponse.json(
+          { error: "Only creator can update this document" },
+          { status: 403 }
+        );
+      }
+
+      // ブロックを削除して再作成
+      await prisma.documentBlock.deleteMany({
+        where: { document_id: documentId },
+      });
+
+      const document = await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          title,
+          blocks: {
+            create: (blocks || []).map((block: any, index: number) => ({
+              type: block.type || "text",
+              content: JSON.stringify(block),
+              position_x: block.x || 0,
+              position_y: block.y || 0,
+              width: block.width || 100,
+              height: block.height || 50,
+              sort_order: index,
+            })),
+          },
+        },
+        include: {
+          blocks: true,
+        },
+      });
+
+      return NextResponse.json({ ok: true, document });
+    }
+
+    // 新規文書作成
+    const document = await prisma.document.create({
+      data: {
+        title,
+        status,
+        creator_id: user.id,
+        blocks: {
+          create: (blocks || []).map((block: any, index: number) => ({
+            type: block.type || "text",
+            content: JSON.stringify(block),
+            position_x: block.x || 0,
+            position_y: block.y || 0,
+            width: block.width || 100,
+            height: block.height || 50,
+            sort_order: index,
+          })),
+        },
+      },
+      include: {
+        blocks: true,
+      },
+    });
+
+    return NextResponse.json({ ok: true, document });
+  } catch (error: any) {
+    console.error("Create/Update document error:", error);
+
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    return NextResponse.json(
+      { error: "Failed to create/update document" },
       { status: 500 }
     );
   }

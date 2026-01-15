@@ -10,6 +10,7 @@ interface HistoryItem {
   createdAt: string;
   user: {
     id: number;
+    name?: string;
     email: string;
     role: string;
   };
@@ -137,7 +138,7 @@ export default function DocumentHistoryPage() {
                     </div>
 
                     <div className="text-sm text-gray-700 mb-1">
-                      <span className="font-medium">{item.user.email}</span>
+                      <span className="font-medium">{item.user.name || item.user.email}</span>
                       <span className="text-gray-500 ml-2">
                         ({item.user.role})
                       </span>

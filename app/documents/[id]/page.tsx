@@ -19,8 +19,10 @@ interface Document {
   id: number;
   title: string;
   status: string;
+  managementNumber?: string | null;
   creator: {
     id: number;
+    name?: string;
     email: string;
     role: string;
   };
@@ -48,6 +50,8 @@ export default function DocumentDetailPage() {
   const [comment, setComment] = useState("");
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
+  const [showReviseDialog, setShowReviseDialog] = useState(false);
+  const [reviseType, setReviseType] = useState<"major" | "minor">("major");
 
   useEffect(() => {
     // 現在のユーザー情報を取得
@@ -83,102 +87,117 @@ export default function DocumentDetailPage() {
   };
 
   const handleSubmit = async () => {
-    if (!currentUserId) return;
     try {
       const res = await fetch("/api/documents/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: parseInt(documentId),
-          userId: currentUserId,
           comment,
         }),
       });
+      const data = await res.json();
       if (res.ok) {
         location.reload();
+      } else {
+        alert(data.error || "提出に失敗しました");
       }
     } catch (error) {
       console.error("Failed to submit:", error);
+      alert("提出に失敗しました");
     }
   };
 
   const handleWithdraw = async () => {
-    if (!currentUserId) return;
     try {
       const res = await fetch("/api/documents/withdraw", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: parseInt(documentId),
-          userId: currentUserId,
           comment,
         }),
       });
+      const data = await res.json();
       if (res.ok) {
         location.reload();
+      } else {
+        alert(data.error || "引き戻しに失敗しました");
       }
     } catch (error) {
       console.error("Failed to withdraw:", error);
+      alert("引き戻しに失敗しました");
     }
   };
 
   const handleRevise = async () => {
-    if (!currentUserId) return;
+    setShowReviseDialog(false);
     try {
       const res = await fetch("/api/documents/revise", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: parseInt(documentId),
-          userId: currentUserId,
           comment,
+          reviseType,
         }),
       });
+      const data = await res.json();
       if (res.ok) {
+        if (data.reviseType === "minor") {
+          alert("軽微修正として記録しました");
+        }
         location.reload();
+      } else {
+        alert(data.error || "改定開始に失敗しました");
       }
     } catch (error) {
       console.error("Failed to revise:", error);
+      alert("改定開始に失敗しました");
     }
   };
 
   const handleApprove = async () => {
-    if (!currentUserId) return;
     try {
       const res = await fetch("/api/documents/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: parseInt(documentId),
-          userId: currentUserId,
           comment,
         }),
       });
+      const data = await res.json();
       if (res.ok) {
         location.reload();
+      } else {
+        alert(data.error || "承認に失敗しました");
       }
     } catch (error) {
       console.error("Failed to approve:", error);
+      alert("承認に失敗しました");
     }
   };
 
   const handleReject = async () => {
-    if (!currentUserId) return;
     try {
       const res = await fetch("/api/documents/reject", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: parseInt(documentId),
-          userId: currentUserId,
           comment,
         }),
       });
+      const data = await res.json();
       if (res.ok) {
         location.reload();
+      } else {
+        alert(data.error || "差し戻しに失敗しました");
       }
     } catch (error) {
       console.error("Failed to reject:", error);
+      alert("差し戻しに失敗しました");
     }
   };
 
@@ -201,7 +220,7 @@ export default function DocumentDetailPage() {
   };
 
   const isCreator = document?.creator.id === currentUserId;
-  const isApprover = currentUserRole === "approver";
+  const isApprover = currentUserRole === "approver" || currentUserRole === "admin";
 
   if (loading) {
     return (
@@ -235,7 +254,12 @@ export default function DocumentDetailPage() {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 {document.title || "無題の文書"}
               </h1>
-              <p className="text-gray-600">作成者: {document.creator.email}</p>
+              {document.managementNumber && (
+                <p className="text-lg font-semibold text-blue-600 mb-2">
+                  管理番号: {document.managementNumber}
+                </p>
+              )}
+              <p className="text-gray-600">作成者: {document.creator.name || document.creator.email}</p>
             </div>
             <span
               className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusBadge(
@@ -303,14 +327,22 @@ export default function DocumentDetailPage() {
           )}
         </div>
 
-        {/* 承認履歴ボタン */}
-        <div className="mb-6">
+        {/* 承認履歴・改訂履歴ボタン */}
+        <div className="mb-6 flex gap-4">
           <button
             onClick={() => router.push(`/documents/${documentId}/history`)}
             className="text-blue-600 hover:text-blue-800 font-medium"
           >
             承認履歴を見る →
           </button>
+          {document.status === "approved" && (
+            <button
+              onClick={() => router.push(`/documents/${documentId}/revisions`)}
+              className="text-purple-600 hover:text-purple-800 font-medium"
+            >
+              改訂履歴を見る →
+            </button>
+          )}
         </div>
 
         {/* アクションエリア */}
@@ -354,7 +386,7 @@ export default function DocumentDetailPage() {
 
             {isCreator && document.status === "approved" && (
               <button
-                onClick={handleRevise}
+                onClick={() => setShowReviseDialog(true)}
                 className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
               >
                 改定開始
@@ -394,6 +426,82 @@ export default function DocumentDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* 改定タイプ選択ダイアログ */}
+      {showReviseDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-4">改定タイプを選択してください</h3>
+            
+            <div className="space-y-3 mb-6">
+              <label className="flex items-start p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                <input
+                  type="radio"
+                  name="reviseType"
+                  value="major"
+                  checked={reviseType === "major"}
+                  onChange={(e) => setReviseType(e.target.value as "major")}
+                  className="mt-1 mr-3"
+                />
+                <div>
+                  <div className="font-semibold text-gray-900">正式改定（承認が必要）</div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    承認フローを通す正式な改定です。確認者・承認者による承認が必要で、承認時に新しい管理番号が発行されます。
+                  </div>
+                </div>
+              </label>
+
+              <label className="flex items-start p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                <input
+                  type="radio"
+                  name="reviseType"
+                  value="minor"
+                  checked={reviseType === "minor"}
+                  onChange={(e) => setReviseType(e.target.value as "minor")}
+                  className="mt-1 mr-3"
+                />
+                <div>
+                  <div className="font-semibold text-gray-900">軽微修正（承認不要）</div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    誤字脱字の修正など、承認が不要な軽微な修正です。即座に反映され、管理番号は変更されません。
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                コメント（任意）
+              </label>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                placeholder="改定理由を入力..."
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleRevise}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+              >
+                {reviseType === "major" ? "改定開始" : "軽微修正を記録"}
+              </button>
+              <button
+                onClick={() => {
+                  setShowReviseDialog(false);
+                  setComment("");
+                }}
+                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

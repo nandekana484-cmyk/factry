@@ -1,0 +1,82 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
+
+// フォルダ一覧取得
+export async function GET() {
+  try {
+    await requireAuth();
+
+    const folders = await (prisma as any).folder.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        _count: {
+          select: {
+            documents: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({ folders });
+  } catch (error: any) {
+    console.error("Get folders error:", error);
+
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    return NextResponse.json(
+      { error: "Failed to fetch folders" },
+      { status: 500 }
+    );
+  }
+}
+
+// フォルダ作成（管理者のみ）
+export async function POST(req: Request) {
+  try {
+    const user = await requireAuth();
+    const { name, code, parentId } = await req.json();
+
+    // 管理者のみ実行可能
+    if (user.role !== "admin") {
+      return NextResponse.json(
+        { error: "Admin role required" },
+        { status: 403 }
+      );
+    }
+
+    if (!name || !code) {
+      return NextResponse.json(
+        { error: "name and code are required" },
+        { status: 400 }
+      );
+    }
+
+    const folder = await (prisma as any).folder.create({
+      data: {
+        name,
+        code: code.toUpperCase(),
+        parent_id: parentId || null,
+      },
+    });
+
+    return NextResponse.json({ ok: true, folder });
+  } catch (error: any) {
+    console.error("Create folder error:", error);
+
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (error.message === "Admin role required") {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+
+    return NextResponse.json(
+      { error: "Failed to create folder" },
+      { status: 500 }
+    );
+  }
+}

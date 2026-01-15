@@ -218,8 +218,10 @@ export const useWriterEditor = () => {
         break;
     }
 
-    setBlocks((prev) => [...prev, block]);
+    const newBlocks = [...blocks, block];
+    setBlocks(newBlocks);
     setSelectedBlock(block);
+    updateCurrentPageBlocks(newBlocks);
   };
 
   // 画像ブロックを追加（Base64データ付き）
@@ -240,8 +242,10 @@ export const useWriterEditor = () => {
       editable: false,
     };
 
-    setBlocks((prev) => [...prev, block]);
+    const newBlocks = [...blocks, block];
+    setBlocks(newBlocks);
     setSelectedBlock(block);
+    updateCurrentPageBlocks(newBlocks);
     return block;
   };
 
@@ -271,16 +275,17 @@ export const useWriterEditor = () => {
       cells: cells,
     };
 
-    setBlocks((prev) => [...prev, block]);
+    const newBlocks = [...blocks, block];
+    setBlocks(newBlocks);
     setSelectedBlock(block);
+    updateCurrentPageBlocks(newBlocks);
     return block;
   };
 
   const updateBlock = (id: string, updated: any) => {
     // 現在のページのブロックを更新
-    setBlocks((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, ...updated } : b))
-    );
+    const newBlocks = blocks.map((b) => (b.id === id ? { ...b, ...updated } : b));
+    setBlocks(newBlocks);
 
     // タイトルプレースホルダーの場合、全ページの同じタイプのブロックを同期
     // ただし、編集中（isEditing: true）の場合は同期しない（カーソル位置保持のため）
@@ -306,6 +311,9 @@ export const useWriterEditor = () => {
     if (selectedBlock?.id === id) {
       setSelectedBlock((prev: any) => ({ ...prev, ...updated }));
     }
+
+    // 履歴に保存
+    updateCurrentPageBlocks(newBlocks);
   };
 
   const selectBlock = (id: string | null) => {
@@ -344,7 +352,9 @@ export const useWriterEditor = () => {
       }
     }
     
-    setBlocks((prev) => prev.filter((b) => b.id !== id));
+    const newBlocks = blocks.filter((b) => b.id !== id);
+    setBlocks(newBlocks);
+    updateCurrentPageBlocks(newBlocks);
     // 削除されたブロックが選択中だったら選択を解除
     if (selectedBlock?.id === id) {
       setSelectedBlock(null);
@@ -565,8 +575,8 @@ export const useWriterEditor = () => {
   };
 
   // 文書提出
-  const submitDocument = (title: string) => {
-    return saveDocument(title, "submitted");
+  const submitDocument = (title: string, folderId?: number) => {
+    return saveDocument(title, "submitted", folderId);
   };
 
   // 下書き読み込み

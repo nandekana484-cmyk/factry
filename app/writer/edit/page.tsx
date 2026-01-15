@@ -11,12 +11,22 @@ export default function WriterEditPage() {
   const [draftDocuments, setDraftDocuments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // クライアント側でlocalStorageから下書きを読み込む
+  // Prisma APIから下書きを読み込む
   useEffect(() => {
-    const documents = JSON.parse(localStorage.getItem("documents") || "[]");
-    const drafts = documents.filter((doc: any) => doc.status === "draft");
-    setDraftDocuments(drafts);
-    setIsLoading(false);
+    const fetchDrafts = async () => {
+      try {
+        const response = await fetch("/api/documents?status=draft");
+        if (response.ok) {
+          const data = await response.json();
+          setDraftDocuments(data.documents || []);
+        }
+      } catch (error) {
+        console.error("下書き取得エラー:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchDrafts();
   }, []);
 
   // URLパラメータからdocumentIdを取得して、writerページに遷移
@@ -27,18 +37,29 @@ export default function WriterEditPage() {
     }
   }, [documentId, router]);
 
-  const handleEditDraft = (draftId: string) => {
+  const handleEditDraft = (draftId: number) => {
     router.push(`/writer/write?documentId=${draftId}`);
   };
 
-  const handleDeleteDraft = (draftId: string) => {
+  const handleDeleteDraft = async (draftId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
     if (!confirm("この下書きを削除してもよろしいですか?")) return;
 
-    const documents = JSON.parse(localStorage.getItem("documents") || "[]");
-    const filtered = documents.filter((doc: any) => doc.id !== draftId);
-    localStorage.setItem("documents", JSON.stringify(filtered));
-    
-    setDraftDocuments(filtered.filter((doc: any) => doc.status === "draft"));
+    try {
+      const response = await fetch(`/api/documents/${draftId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setDraftDocuments(draftDocuments.filter((doc) => doc.id !== draftId));
+      } else {
+        alert("削除に失敗しました");
+      }
+    } catch (error) {
+      console.error("削除エラー:", error);
+      alert("削除に失敗しました");
+    }
   };
 
   if (isLoading) {
@@ -101,16 +122,9 @@ export default function WriterEditPage() {
                     </div>
                   </div>
 
-                  {/* サブタイトル */}
-                  {draft.subtitle && (
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {draft.subtitle}
-                    </p>
-                  )}
-
-                  {/* ページ数 */}
+                  {/* ブロック数 */}
                   <div className="mb-4 text-sm text-gray-500">
-                    📄 {draft.pages?.length || 1} ページ
+                    📄 {draft.blockCount || 0} ブロック
                   </div>
 
                   {/* ボタン */}
@@ -122,10 +136,7 @@ export default function WriterEditPage() {
                       編集する
                     </button>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteDraft(draft.id);
-                      }}
+                      onClick={(e) => handleDeleteDraft(draft.id, e)}
                       className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition text-sm font-medium"
                     >
                       削除

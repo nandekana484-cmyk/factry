@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     // Prismaでユーザーを作成
     const user = await prisma.user.create({
       data: {
+        name: email.split('@')[0], // emailのローカル部分を名前として使用
         email,
         password: hashedPassword,
         role: role ?? 'user',

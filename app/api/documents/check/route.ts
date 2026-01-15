@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
-// 引き戻し（pending → draft、作成者が実行）
+// 確認処理（pending → checking）
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
@@ -26,62 +26,71 @@ export async function POST(req: Request) {
         throw new Error("Document not found");
       }
 
-      // 作成者のみ実行可能
-      if (document.creator_id !== user.id) {
-        throw new Error("Only the creator can withdraw the document");
+      if (!document.approvalRequest) {
+        throw new Error("Approval request not found");
+      }
+
+      // 確認者または承認者のみ実行可能
+      const isChecker = (document.approvalRequest as any).checker_id === user.id;
+      const isApprover = (document.approvalRequest as any).approver_id === user.id;
+      
+      if (!isChecker && !isApprover) {
+        throw new Error("Only the assigned checker or approver can check this document");
+      }
+
+      // 作成者は確認できない
+      if (document.creator_id === user.id) {
+        throw new Error("Creator cannot check their own document");
       }
 
       if (document.status !== "pending") {
-        throw new Error("Only pending documents can be withdrawn");
+        throw new Error("Only pending documents can be checked");
       }
 
-      // 文書の状態を draft に戻す
+      // 文書の状態を checking に更新
       await tx.document.update({
         where: { id: documentId },
-        data: { status: "draft" },
+        data: { status: "checking" },
       });
-
-      // 承認リクエストを削除
-      if (document.approvalRequest) {
-        await tx.approvalRequest.delete({
-          where: { document_id: documentId },
-        });
-      }
 
       // 履歴を記録
       await tx.approvalHistory.create({
         data: {
           document_id: documentId,
           user_id: user.id,
-          action: "withdrawn",
+          action: "checked",
           comment: comment || null,
         },
       });
 
-      return { status: "draft" };
+      return { status: "checking" };
     });
 
-    return NextResponse.json({ ok: true, status: result.status });
+    return NextResponse.json({ ok: true, ...result });
   } catch (error: any) {
-    console.error("Withdraw document error:", error);
+    console.error("Check document error:", error);
 
     if (error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (error.message === "Document not found") {
+    if (
+      error.message === "Document not found" ||
+      error.message === "Approval request not found"
+    ) {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
 
     if (
-      error.message === "Only the creator can withdraw the document" ||
-      error.message === "Only pending documents can be withdrawn"
+      error.message === "Only the assigned checker or approver can check this document" ||
+      error.message === "Creator cannot check their own document" ||
+      error.message === "Only pending documents can be checked"
     ) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
     return NextResponse.json(
-      { error: "Failed to withdraw document" },
+      { error: "Failed to check document" },
       { status: 500 }
     );
   }
