@@ -33,19 +33,11 @@ export async function GET() {
   }
 }
 
-// フォルダ作成（管理者のみ）
+// フォルダ作成
 export async function POST(req: Request) {
   try {
-    const user = await requireAuth();
+    await requireAuth();
     const { name, code, parentId } = await req.json();
-
-    // 管理者のみ実行可能
-    if (user.role !== "admin") {
-      return NextResponse.json(
-        { error: "Admin role required" },
-        { status: 403 }
-      );
-    }
 
     if (!name || !code) {
       return NextResponse.json(

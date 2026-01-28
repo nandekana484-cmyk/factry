@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   try {
     const user = await requireAuth();
     const body = await req.json();
-    const { documentId, title, blocks, folderId } = body;
+    const { documentId, title, blocks, folderId, documentTypeId } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -45,6 +45,7 @@ export async function POST(req: Request) {
           data: {
             title,
             folder_id: folderId !== undefined ? folderId : existing.folder_id,
+            document_type_id: documentTypeId !== undefined ? documentTypeId : existing.document_type_id,
             updated_at: new Date(),
           },
         });
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
             status: "draft",
             creator_id: user.id,
             folder_id: folderId || null,
+            document_type_id: documentTypeId || null,
           },
         });
       }

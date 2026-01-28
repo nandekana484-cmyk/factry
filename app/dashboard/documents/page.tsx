@@ -1,228 +1,338 @@
 "use client";
 
-/**
- * ⚠️ 非推奨: このページは LocalStorage ベースの旧アーキテクチャです
- * 
- * 新しい文書管理システムは以下を使用してください:
- * - /writer/write - 文書作成
- * - /documents - 文書一覧
- * - /approver - 承認ダッシュボード
- * 
- * このページは互換性のために残されていますが、将来削除される予定です。
- */
-
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import FolderTree from "@/components/FolderTree";
-import {
-  Folder,
-  Document,
-  getFolders,
-  addFolder,
-  deleteFolder,
-  renameFolder,
-  getDocumentsByFolder,
-} from "@/lib/folderManagement";
+import EnhancedFolderTree from "@/components/EnhancedFolderTree";
+
+interface Folder {
+  id: number;
+  name: string;
+  code: string;
+  parent_id: number | null;
+  children?: Folder[];
+}
+
+interface DocumentType {
+  id: number;
+  code: string;
+  name: string;
+}
+
+interface Document {
+  id: number;
+  title: string;
+  status: string;
+  management_number: string | null;
+  folder?: {
+    id: number;
+    name: string;
+    code: string;
+  };
+  documentType?: {
+    id: number;
+    code: string;
+    name: string;
+  };
+  creator: {
+    id: number;
+    name?: string;
+    email: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
 
 export default function DocumentsPage() {
   const router = useRouter();
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
+  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadFolders();
+    loadDocumentTypes();
   }, []);
 
   useEffect(() => {
-    if (selectedFolder) {
-      loadDocuments(selectedFolder.id);
-    }
-  }, [selectedFolder]);
-
-  const loadFolders = () => {
-    setFolders(getFolders());
-  };
-
-  const loadDocuments = (folderId: string) => {
-    const docs = getDocumentsByFolder(folderId);
-    setDocuments(docs);
-  };
-
-  const handleAddFolder = (parentId: string, name: string) => {
-    const updated = addFolder(parentId, name);
-    setFolders(updated);
-  };
-
-  const handleRenameFolder = (folderId: string, newName: string) => {
-    const updated = renameFolder(folderId, newName);
-    setFolders(updated);
-  };
-
-  const handleDeleteFolder = (folderId: string) => {
-    const updated = deleteFolder(folderId);
-    setFolders(updated);
-    if (selectedFolder?.id === folderId) {
-      setSelectedFolder(null);
+    if (selectedFolderId !== null) {
+      loadDocuments();
+    } else {
       setDocuments([]);
     }
+  }, [selectedFolderId, selectedTypeId]);
+
+  const loadFolders = async () => {
+    try {
+      const response = await fetch("/api/folders");
+      if (response.ok) {
+        const data = await response.json();
+        const apiFolders = data.folders || [];
+        
+        // 階層構造を構築
+        const buildTree = (items: Folder[]): Folder[] => {
+          const map = new Map<number, Folder>();
+          const roots: Folder[] = [];
+          
+          items.forEach(item => {
+            map.set(item.id, { ...item, children: [] });
+          });
+          
+          items.forEach(item => {
+            const node = map.get(item.id)!;
+            if (item.parent_id === null) {
+              roots.push(node);
+            } else {
+              const parent = map.get(item.parent_id);
+              if (parent) {
+                parent.children!.push(node);
+              }
+            }
+          });
+          
+          return roots;
+        };
+        
+        setFolders(buildTree(apiFolders));
+      }
+    } catch (error) {
+      console.error("Failed to load folders:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      draft: "下書き",
-      submitted: "提出済み",
-      checking: "確認中",
-      approved: "承認済み",
-      rejected: "差し戻し",
-    };
-    return labels[status] || status;
+  const loadDocumentTypes = async () => {
+    try {
+      const response = await fetch("/api/document-types");
+      if (response.ok) {
+        const data = await response.json();
+        setDocumentTypes(data.documentTypes || []);
+      }
+    } catch (error) {
+      console.error("Failed to load document types:", error);
+    }
   };
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      draft: "bg-gray-100 text-gray-700",
-      submitted: "bg-blue-100 text-blue-700",
-      checking: "bg-yellow-100 text-yellow-700",
-      approved: "bg-green-100 text-green-700",
-      rejected: "bg-red-100 text-red-700",
-    };
-    return colors[status] || "bg-gray-100 text-gray-700";
+  const loadDocuments = async () => {
+    try {
+      const params = new URLSearchParams();
+      params.append("status", "approved");
+      if (selectedFolderId) params.append("folderId", String(selectedFolderId));
+      if (selectedTypeId) params.append("typeId", String(selectedTypeId));
+      
+      const response = await fetch(`/api/documents?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments(data.documents || []);
+      }
+    } catch (error) {
+      console.error("Failed to load documents:", error);
+    }
   };
 
-  const getApprovalStatus = (doc: Document) => {
-    const creator = doc.approvalHistory.find((h) => h.role === "creator");
-    const checker = doc.approvalHistory.find((h) => h.role === "checker");
-    const approver = doc.approvalHistory.find((h) => h.role === "approver");
+  const handleSelectFolder = (folderId: number, typeId: number | null) => {
+    setSelectedFolderId(folderId);
+    setSelectedTypeId(typeId);
+  };
 
+  const handleAddFolder = async (parentId: number | null, name: string, code: string) => {
+    try {
+      const response = await fetch("/api/folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          code: code.toUpperCase(),
+          parentId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || "フォルダーの作成に失敗しました");
+        return;
+      }
+
+      alert("フォルダーを作成しました");
+      await loadFolders();
+    } catch (error) {
+      console.error("Failed to add folder:", error);
+      alert("フォルダーの作成に失敗しました");
+    }
+  };
+
+  const handleEditFolder = async (folderId: number, name: string, code: string) => {
+    try {
+      const response = await fetch(`/api/folders/${folderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, code: code.toUpperCase() }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || "フォルダーの更新に失敗しました");
+        return;
+      }
+
+      alert("フォルダーを更新しました");
+      await loadFolders();
+    } catch (error) {
+      console.error("Failed to edit folder:", error);
+      alert("フォルダーの更新に失敗しました");
+    }
+  };
+
+  const handleDeleteFolder = async (folderId: number) => {
+    if (!confirm("このフォルダーを削除しますか？\n※サブフォルダーや文書が存在する場合は削除できません")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/folders/${folderId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || "フォルダーの削除に失敗しました");
+        return;
+      }
+
+      alert("フォルダーを削除しました");
+      if (selectedFolderId === folderId) {
+        setSelectedFolderId(null);
+        setSelectedTypeId(null);
+      }
+      await loadFolders();
+    } catch (error) {
+      console.error("Failed to delete folder:", error);
+      alert("フォルダーの削除に失敗しました");
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="flex gap-1 text-xs">
-        <span
-          className={`px-2 py-0.5 rounded ${
-            creator?.status === "approved"
-              ? "bg-green-100 text-green-700"
-              : "bg-gray-100 text-gray-500"
-          }`}
-        >
-          作成
-        </span>
-        <span
-          className={`px-2 py-0.5 rounded ${
-            checker?.status === "approved"
-              ? "bg-green-100 text-green-700"
-              : checker?.status === "pending"
-              ? "bg-yellow-100 text-yellow-700"
-              : "bg-gray-100 text-gray-500"
-          }`}
-        >
-          確認
-        </span>
-        <span
-          className={`px-2 py-0.5 rounded ${
-            approver?.status === "approved"
-              ? "bg-green-100 text-green-700"
-              : approver?.status === "pending"
-              ? "bg-yellow-100 text-yellow-700"
-              : "bg-gray-100 text-gray-500"
-          }`}
-        >
-          承認
-        </span>
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-gray-600">読み込み中...</div>
       </div>
     );
-  };
+  }
 
   return (
     <div className="h-screen flex flex-col">
       {/* ヘッダー */}
-      <div className="bg-white border-b p-4">
-        <h1 className="text-2xl font-bold">文書管理</h1>
+      <div className="bg-white border-b p-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">文書管理</h1>
+          <p className="text-sm text-gray-600">承認済み文書の閲覧</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+          >
+            ← ダッシュボード
+          </button>
+          <button
+            onClick={() => router.push("/admin/folders")}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            フォルダー管理
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* 左側：フォルダーツリー */}
-        <div className="w-80 border-r p-4 overflow-y-auto">
-          <div className="mb-4">
-            <h2 className="font-bold text-lg mb-2">フォルダー</h2>
-          </div>
-          <FolderTree
+        <div className="w-80 border-r p-4 overflow-y-auto bg-gray-50">
+          <EnhancedFolderTree
             folders={folders}
-            selectedFolderId={selectedFolder?.id || null}
-            onSelectFolder={setSelectedFolder}
+            documentTypes={documentTypes}
+            selectedFolderId={selectedFolderId}
+            selectedTypeId={selectedTypeId}
+            onSelectFolder={handleSelectFolder}
             onAddFolder={handleAddFolder}
-            onRenameFolder={handleRenameFolder}
+            onEditFolder={handleEditFolder}
             onDeleteFolder={handleDeleteFolder}
+            editable={true}
           />
         </div>
 
         {/* 右側：文書一覧 */}
-        <div className="flex-1 p-4 overflow-y-auto">
-          {selectedFolder ? (
+        <div className="flex-1 p-6 overflow-y-auto">
+          {selectedFolderId === null ? (
+            <div className="text-center text-gray-400 py-12">
+              <p className="text-lg">左側のフォルダーまたは文書種別を選択してください</p>
+            </div>
+          ) : (
             <>
-              <div className="mb-4">
-                <h2 className="text-xl font-bold">
-                  {selectedFolder.name} 内の文書
-                </h2>
-                <p className="text-sm text-gray-500">
-                  パス: {selectedFolder.path.join(" / ") || "ルート"}
-                </p>
+              <div className="mb-6">
+                <h2 className="text-xl font-bold mb-2">承認済み文書一覧</h2>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span>📁 フォルダーID: {selectedFolderId}</span>
+                  {selectedTypeId && (
+                    <>
+                      <span>•</span>
+                      <span>📄 文書種別ID: {selectedTypeId}</span>
+                    </>
+                  )}
+                  <span>•</span>
+                  <span>{documents.length}件</span>
+                </div>
               </div>
 
               {documents.length === 0 ? (
-                <div className="text-center text-gray-400 py-12">
-                  このフォルダーには文書がありません
+                <div className="text-center text-gray-400 py-12 bg-gray-50 rounded-lg">
+                  <p>承認済み文書がありません</p>
                 </div>
               ) : (
-                <div className="bg-white rounded shadow overflow-hidden">
+                <div className="bg-white rounded-lg shadow overflow-hidden">
                   <table className="w-full">
                     <thead className="bg-gray-100 border-b">
                       <tr>
-                        <th className="px-4 py-2 text-left text-sm font-semibold">
-                          管理番号
-                        </th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold">
-                          タイトル
-                        </th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold">
-                          作成者
-                        </th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold">
-                          作成日
-                        </th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold">
-                          承認履歴
-                        </th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold">
-                          ステータス
-                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">管理番号</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">タイトル</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">文書種別</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">作成者</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">作成日</th>
                       </tr>
                     </thead>
                     <tbody>
                       {documents.map((doc) => (
                         <tr
                           key={doc.id}
-                          className="border-b hover:bg-gray-50 cursor-pointer"
-                          onClick={() =>
-                            router.push(`/dashboard/documents/${doc.id}`)
-                          }
+                          className="border-b hover:bg-gray-50 cursor-pointer transition"
+                          onClick={() => router.push(`/documents/${doc.id}`)}
                         >
-                          <td className="px-4 py-2 text-sm font-mono text-blue-600 hover:underline">
-                            {doc.managementNumber}
-                          </td>
-                          <td className="px-4 py-2 text-sm">{doc.title}</td>
-                          <td className="px-4 py-2 text-sm">{doc.creator}</td>
-                          <td className="px-4 py-2 text-sm">
-                            {new Date(doc.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-2">{getApprovalStatus(doc)}</td>
-                          <td className="px-4 py-2">
-                            <span
-                              className={`px-2 py-1 rounded text-xs ${getStatusColor(
-                                doc.status
-                              )}`}
-                            >
-                              {getStatusLabel(doc.status)}
+                          <td className="px-4 py-3">
+                            <span className="font-mono text-sm font-semibold text-blue-600">
+                              {doc.management_number || "-"}
                             </span>
+                          </td>
+                          <td className="px-4 py-3 font-medium">{doc.title}</td>
+                          <td className="px-4 py-3">
+                            {doc.documentType ? (
+                              <span className="text-sm">
+                                <span className="font-mono font-semibold text-blue-600">
+                                  {doc.documentType.code}
+                                </span>
+                                <span className="text-gray-600 ml-1">
+                                  （{doc.documentType.name}）
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {doc.creator.name || doc.creator.email}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {new Date(doc.created_at).toLocaleDateString("ja-JP")}
                           </td>
                         </tr>
                       ))}
@@ -231,10 +341,6 @@ export default function DocumentsPage() {
                 </div>
               )}
             </>
-          ) : (
-            <div className="text-center text-gray-400 py-12">
-              左のフォルダーツリーからフォルダーを選択してください
-            </div>
           )}
         </div>
       </div>

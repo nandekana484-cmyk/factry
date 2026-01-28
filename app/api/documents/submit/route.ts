@@ -6,7 +6,7 @@ import { requireAuth } from "@/lib/auth";
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
-    const { documentId, folderId, checkerId, approverId, comment } = await req.json();
+    const { documentId, checkerId, approverId, comment } = await req.json();
 
     if (!documentId) {
       return NextResponse.json(
@@ -41,37 +41,12 @@ export async function POST(req: Request) {
         throw new Error("Only draft documents can be submitted");
       }
 
-      // フォルダ情報を取得して管理番号を生成
-      let managementNumber: string | null = null;
-      if (folderId) {
-        const folder = await tx.folder.findUnique({
-          where: { id: folderId },
-        });
-
-        if (!folder) {
-          throw new Error("Folder not found");
-        }
-
-        // フォルダ内の文書数をカウント（フォルダコードで始まる管理番号を持つ文書）
-        const folderDocCount = await tx.document.count({
-          where: {
-            folder_id: folderId,
-            management_number: { startsWith: folder.code },
-          },
-        });
-
-        // 管理番号を生成（例: WI-001, MANUAL-015）
-        const seq = (folderDocCount + 1).toString().padStart(3, "0");
-        managementNumber = `${folder.code}-${seq}`;
-      }
-
       // 文書の状態を checking に更新（確認待ち）
+      // フォルダIDと文書種別IDは draft 時に設定済み
       await tx.document.update({
         where: { id: documentId },
         data: {
           status: "checking",
-          folder_id: folderId || null,
-          management_number: managementNumber,
         },
       });
 
@@ -96,7 +71,7 @@ export async function POST(req: Request) {
         },
       });
 
-      return { status: "checking", managementNumber };
+      return { status: "checking" };
     });
 
     return NextResponse.json({ ok: true, ...result });

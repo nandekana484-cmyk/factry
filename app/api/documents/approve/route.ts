@@ -79,24 +79,43 @@ export async function POST(req: Request) {
       if (!document.management_number || isRevision) {
         // 管理番号がまだない場合（初回承認）or 改定の場合
         if (document.folder_id) {
-          // フォルダあり: フォルダコード + 連番
+          // フォルダあり: フォルダコード + 文書種別コード + 連番
           const folder = await tx.folder.findUnique({
             where: { id: document.folder_id },
           });
 
-          if (folder) {
-            // フォルダ内の承認済み文書数をカウント
-            const folderDocCount = await tx.document.count({
-              where: {
-                folder_id: document.folder_id,
-                status: "approved",
-                management_number: { not: null },
-              },
+          // 文書種別を取得
+          let documentType = null;
+          if ((document as any).document_type_id) {
+            documentType = await tx.documentType.findUnique({
+              where: { id: (document as any).document_type_id },
             });
+          }
+
+          if (folder) {
+            // 同じフォルダ・同じ文書種別の承認済み文書数をカウント
+            const whereCondition: any = {
+              folder_id: document.folder_id,
+              status: "approved",
+              management_number: { not: null },
+            };
+            
+            if (documentType) {
+              whereCondition.document_type_id = documentType.id;
+            }
+            
+            const folderDocCount = await tx.document.count({ where: whereCondition });
 
             // 新しい管理番号を生成
-            const seq = (folderDocCount + 1).toString().padStart(3, "0");
-            newManagementNumber = `${folder.code}-${seq}`;
+            // 形式: {folder_code}-{document_type_code}-{4桁連番}
+            // 例: QA-RP-0001
+            const seq = (folderDocCount + 1).toString().padStart(4, "0");
+            if (documentType) {
+              newManagementNumber = `${folder.code}-${documentType.code}-${seq}`;
+            } else {
+              // 文書種別が未設定の場合は従来形式
+              newManagementNumber = `${folder.code}-${seq.padStart(3, "0")}`;
+            }
           }
         } else {
           // フォルダなし: A- + 連番

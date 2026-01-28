@@ -50,20 +50,37 @@ model Folder {
   @@map("folders")
 }
 
+model DocumentType {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique // 文書種別コード（例: "RP", "WI", "MN"）
+  name        String   // 文書種別名（例: "報告書", "手順書", "マニュアル"）
+  description String?  // 説明（任意）
+  order       Int      @default(0) // 並び順
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // リレーション
+  documents   Document[]
+
+  @@map("document_types")
+}
+
 model Document {
   id                Int      @id @default(autoincrement())
   title             String
   status            String   @default("draft") // "draft" | "checking" | "pending" | "approved"
   creator_id        Int
   template_id       Int?
-  folder_id         Int?     // フォルダID（追加）
-  management_number String?  // 管理番号（例: "WI-001", "MANUAL-015"）
+  folder_id         Int?     // フォルダID
+  document_type_id  Int?     // 文書種別ID（追加）
+  management_number String?  // 管理番号（例: "QA-PRJ1-RP-0001"）
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
 
   // リレーション
   creator           User              @relation("DocumentCreator", fields: [creator_id], references: [id])
   folder            Folder?           @relation(fields: [folder_id], references: [id])
+  documentType      DocumentType?     @relation(fields: [document_type_id], references: [id])
   blocks            DocumentBlock[]
   approvalRequest   ApprovalRequest?
   approvalHistories ApprovalHistory[]

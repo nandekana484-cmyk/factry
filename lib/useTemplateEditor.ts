@@ -351,7 +351,67 @@ export const useTemplateEditor = () => {
     const block: any = {
       id: nanoid(),
       type: "table",
-      x,（API経由）
+      x,
+      y,
+      width: Math.max(cols * 80, 240),
+      height: Math.max(rows * 30, 90),
+      isEditing: false,
+      rotate: 0,
+      rows,
+      cols,
+      borderColor: "#000000",
+      borderWidth: 1,
+      editable: false,
+      cells: cells,
+    };
+
+    setBlocks((prev) => [...prev, block]);
+    setSelectedBlock(block);
+    return block;
+  };
+
+  const updateBlock = (id: string, updated: any) => {
+    const newBlocks = blocks.map((b) => (b.id === id ? { ...b, ...updated } : b));
+    setBlocks(newBlocks);
+
+    // 選択中のブロック情報も同期
+    if (selectedBlock?.id === id) {
+      setSelectedBlock((prev: any) => ({ ...prev, ...updated }));
+    }
+
+    // 履歴に保存
+    saveToHistory();
+  };
+
+  const selectBlock = (id: string | null) => {
+    if (id === null) {
+      setSelectedBlock(null);
+      setSelectedCell(null);
+      return;
+    }
+    const block = blocks.find((b) => b.id === id);
+    if (block) setSelectedBlock(block);
+    
+    // 異なるブロックに切り替わる場合のみセルをリセット
+    if (selectedBlock?.id !== id) {
+      setSelectedCell(null);
+    }
+  };
+
+  const deleteBlock = (id: string) => {
+    const newBlocks = blocks.filter((b) => b.id !== id);
+    setBlocks(newBlocks);
+    
+    // 削除されたブロックが選択中だったら選択を解除
+    if (selectedBlock?.id === id) {
+      setSelectedBlock(null);
+      setSelectedCell(null);
+    }
+
+    // 履歴に保存
+    saveToHistory();
+  };
+
   const saveTemplate = async (name: string) => {
     try {
       const response = await fetch("/api/templates", {
@@ -435,49 +495,10 @@ export const useTemplateEditor = () => {
     } catch (error) {
       console.error("Save template as new error:", error);
       throw error;
-    } = (name: string) => {
-    const template = {
-      id: nanoid(),
-      name,
-      createdAt: Date.now(),
-      blocks: JSON.parse(JSON.stringify(blocks)), // ディープコピー
-      paper,
-      orientation,
-    };
-
-    const existing = JSON.parse(localStorage.getItem("templates") || "[]");
-    const updated = [...existing, template];
-    localStorage.setItem("templates", JSON.stringify(updated));
-
-    setSelectedTemplateId(template.id); // 新規保存後に選択状態にする
-    return template;
+    }
   };
 
-  // テンプレート上書き保存（同じ名前のまま更新）
-  const saveTemplateOverwrite = () => {
-    if (!selectedTemplateId) return null;
-
-    const existing = JSON.parse(localStorage.getItem("templates") || "[]");
-    const currentTemplate = existing.find((t: any) => t.id === selectedTemplateId);
-    if (!currentTemplate) return null;
-
-    const updated = existing.map((t: any) =>
-      t.id === selectedTemplateId
-        ? {
-            ...t,
-            blocks: JSON.parse(JSON.stringify(blocks)),            paper,
-            orientation,            updatedAt: Date.now(),
-          }
-        : t
-    );
-    localStorage.setItem("templates", JSON.stringify(updated));
-
-    return updated.find((t: any) => t.id === selectedTemplateId);
-  };
-
-  // 名前を変更して新規保存
-  const saveTemplateAsNew = (newName: string) => {
-    const tから読み込む（API経由）
+  // テンプレートをローカルストレージから読み込む（API経由）
   const loadTemplate = useCallback(async (templateId: string) => {
     try {
       const response = await fetch("/api/templates");
@@ -533,36 +554,30 @@ export const useTemplateEditor = () => {
       if (!response.ok) {
         throw new Error("Failed to delete template");
       }
+
+      // 削除したテンプレートが選択中だった場合はクリア
+      if (selectedTemplateId === templateId) {
+        setSelectedTemplateId(null);
+        setBlocks([]);
+      }
+
+      return true;
     } catch (error) {
       console.error("Delete template error:", error);
       throw error;
     }
-        const snappedX = Math.round(b.x / gridSize) * gridSize;
-        const snappedY = Math.round(b.y / gridSize) * gridSize;
-        const snappedWidth = Math.round(b.width / gridSize) * gridSize;
-        const snappedHeight = Math.round(b.height / gridSize) * gridSize;
-        
-        return {
-          ...b,
-          x: snappedX,
-          y: snappedY,
-          width: snappedWidth,
-          height: snappedHeight,
-          zIndex: b.zIndex || (isTextLike || isPlaceholder ? 1500 : 100),
-        };
-      });
-      setBlocks(JSON.parse(JSON.stringify(blocksWithZIndex)));
-      setSelectedBlock(null);
-      setSelectedCell(null);
-      setSelectedTemplateId(templateId); // 選択中のテンプレートIDをセット
-    }
-  }, [gridSize]);
+  };
 
-  // テンプレート削除
-  const deleteTemplate = (templateId: string) => {
-    const existing = JSON.parse(localStorage.getItem("templates") || "[]");
-    const updated = existing.filter((t: any) => t.id !== templateId);
-    localStorage.setItem("templates", JSON.stringify(updated));
+  // 新規テンプレート作成（リセット）
+  const newTemplate = () => {
+    setBlocks([]);
+    setSelectedBlock(null);
+    setSelectedCell(null);
+    setSelectedTemplateId(null);
+    setPaper("A4");
+    setOrientation("portrait");
+    setHistory([[]]);
+    setHistoryIndex(0);
   };
 
   return {

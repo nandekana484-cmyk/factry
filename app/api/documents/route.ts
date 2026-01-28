@@ -8,6 +8,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status"); // draft, pending, approved
     const creatorId = searchParams.get("creatorId");
+    const folderId = searchParams.get("folderId");
+    const typeId = searchParams.get("typeId");
 
     const where: any = {};
 
@@ -19,11 +21,25 @@ export async function GET(req: Request) {
       where.creator_id = parseInt(creatorId);
     }
 
+    if (folderId) {
+      where.folder_id = parseInt(folderId);
+    }
+
+    if (typeId) {
+      where.document_type_id = parseInt(typeId);
+    }
+
     const documents = await prisma.document.findMany({
       where,
       include: {
         creator: {
           select: { id: true, name: true, email: true, role: true },
+        },
+        folder: {
+          select: { id: true, name: true, code: true },
+        },
+        documentType: {
+          select: { id: true, code: true, name: true },
         },
         approvalRequest: {
           include: {
@@ -63,6 +79,8 @@ export async function GET(req: Request) {
         status: doc.status,
         managementNumber: (doc as any).management_number,
         creator: (doc as any).creator,
+        folder: (doc as any).folder,
+        documentType: (doc as any).documentType,
         approvalRequest: (doc as any).approvalRequest,
         latestRevision: (doc as any).revisionHistories[0] ? {
           id: (doc as any).revisionHistories[0].id,
@@ -89,11 +107,19 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
-    const { title, blocks, status = "draft", documentId } = await req.json();
+    const { title, blocks, status = "draft", documentId, folderId } = await req.json();
 
     if (!title) {
       return NextResponse.json(
         { error: "title is required" },
+        { status: 400 }
+      );
+    }
+
+    // 新規作成時はフォルダIDが必須
+    if (!documentId && !folderId) {
+      return NextResponse.json(
+        { error: "folderId is required for new documents" },
         { status: 400 }
       );
     }
@@ -148,11 +174,42 @@ export async function POST(req: Request) {
     }
 
     // 新規文書作成
+    // フォルダ別の管理番号を生成
+    const folder = await prisma.folder.findUnique({
+      where: { id: folderId },
+    });
+
+    if (!folder) {
+      return NextResponse.json(
+        { error: "Folder not found" },
+        { status: 404 }
+      );
+    }
+
+    // 同じフォルダ内の最大管理番号を取得
+    const lastDocument = await prisma.document.findFirst({
+      where: { folder_id: folderId },
+      orderBy: { management_number: "desc" },
+    });
+
+    let nextNumber = 1;
+    if (lastDocument && lastDocument.management_number) {
+      // 管理番号から数字部分を抽出（例: "WI-001" -> 1）
+      const match = lastDocument.management_number.match(/(\d+)$/);
+      if (match) {
+        nextNumber = parseInt(match[1]) + 1;
+      }
+    }
+
+    const managementNumber = `${folder.code}-${String(nextNumber).padStart(3, "0")}`;
+
     const document = await prisma.document.create({
       data: {
         title,
         status,
         creator_id: user.id,
+        folder_id: folderId,
+        management_number: managementNumber,
         blocks: {
           create: (blocks || []).map((block: any, index: number) => ({
             type: block.type || "text",

@@ -28,6 +28,10 @@ export default function WriterPage() {
   const [draftDocuments, setDraftDocuments] = useState<any[]>([]);
   const [showFolderSelect, setShowFolderSelect] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<any>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [documentTypes, setDocumentTypes] = useState<any[]>([]);
+  const [selectedDocumentTypeId, setSelectedDocumentTypeId] = useState<number | null>(null);
+  const [folders, setFolders] = useState<any[]>([]);
   
   // 編集補助機能のstate
   const [showGrid, setShowGrid] = useState(true);
@@ -63,6 +67,34 @@ export default function WriterPage() {
     const documents = JSON.parse(localStorage.getItem("documents") || "[]");
     const drafts = documents.filter((doc: any) => doc.status === "draft");
     setDraftDocuments(drafts);
+
+    // 文書種別リストを取得
+    const fetchDocumentTypes = async () => {
+      try {
+        const response = await fetch("/api/document-types");
+        if (response.ok) {
+          const data = await response.json();
+          setDocumentTypes(data.documentTypes || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch document types:", error);
+      }
+    };
+    fetchDocumentTypes();
+
+    // フォルダーリストを取得
+    const fetchFolders = async () => {
+      try {
+        const response = await fetch("/api/folders");
+        if (response.ok) {
+          const data = await response.json();
+          setFolders(data.folders || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch folders:", error);
+      }
+    };
+    fetchFolders();
   }, []);
 
   // URLパラメータからdocumentIdを取得して文書を読み込む
@@ -125,7 +157,13 @@ export default function WriterPage() {
   }, [editor]);
 
   // アクションハンドラー
-  const actions = useWriterActions(editor, setIsDirty, setIsSaving);
+  const actions = useWriterActions(
+    editor, 
+    setIsDirty, 
+    setIsSaving, 
+    selectedDocumentTypeId,
+    selectedFolderId
+  );
 
   // テンプレート・下書き読み込みハンドラー
   const handleLoadTemplate = useTemplateLoadHandler(isDirty, editor.loadTemplate, setIsDirty);
@@ -163,6 +201,12 @@ export default function WriterPage() {
           draftDocuments={draftDocuments}
           onLoadTemplate={handleLoadTemplate}
           onLoadDraft={handleLoadDraft}
+          documentTypes={documentTypes}
+          selectedDocumentTypeId={selectedDocumentTypeId}
+          onSelectDocumentType={setSelectedDocumentTypeId}
+          folders={folders}
+          selectedFolderId={selectedFolderId}
+          onSelectFolder={setSelectedFolderId}
         />
       </div>
 

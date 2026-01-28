@@ -37,7 +37,9 @@ const extractTitleFromBlocks = (blocks: any[]): string => {
 export const useWriterActions = (
   editor: any,
   setIsDirty: (dirty: boolean) => void,
-  setIsSaving: (saving: boolean) => void
+  setIsSaving: (saving: boolean) => void,
+  documentTypeId?: number | null,
+  folderId?: number | null
 ) => {
   const router = useRouter();
 
@@ -65,6 +67,8 @@ export const useWriterActions = (
         body: JSON.stringify({
           title: finalTitle,
           blocks: editor.blocks,
+          documentTypeId: documentTypeId,
+          folderId: folderId,
         }),
       });
 
@@ -95,7 +99,7 @@ export const useWriterActions = (
       alert(`下書きの保存に失敗しました: ${error.message || error}`);
       setIsSaving(false);
     }
-  }, [editor, setIsDirty, setIsSaving]);
+  }, [editor, setIsDirty, setIsSaving, documentTypeId, folderId]);
 
   const handleOverwriteDraft = useCallback(async () => {
     console.log("[handleOverwriteDraft] 上書き保存を開始");
@@ -119,6 +123,8 @@ export const useWriterActions = (
           title: autoTitle,
           blocks: editor.blocks,
           documentId: editor.currentDocumentId,
+          documentTypeId: documentTypeId,
+          folderId: folderId,
         }),
       });
 
@@ -144,7 +150,7 @@ export const useWriterActions = (
       alert(`上書き保存に失敗しました: ${error.message || error}`);
       setIsSaving(false);
     }
-  }, [editor, setIsDirty, setIsSaving, handleSaveDraft]);
+  }, [editor, setIsDirty, setIsSaving, handleSaveDraft, documentTypeId, folderId]);
 
   const handleSubmitDocument = useCallback(async (folderId?: number, checkerId?: number, approverId?: number) => {
     console.log("[handleSubmitDocument] 文書提出を開始", { folderId, checkerId, approverId });
@@ -166,6 +172,8 @@ export const useWriterActions = (
           title: autoTitle,
           blocks: editor.blocks,
           documentId: editor.currentDocumentId || undefined,
+          documentTypeId: documentTypeId,
+          folderId: folderId,
         }),
       });
 
@@ -191,7 +199,6 @@ export const useWriterActions = (
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: documentId,
-          folderId: folderId,
           checkerId: checkerId,
           approverId: approverId,
           comment: `文書を提出しました: ${autoTitle}`,
@@ -229,7 +236,7 @@ export const useWriterActions = (
       alert(`ドキュメントの提出に失敗しました: ${error.message || error}`);
       setIsSaving(false);
     }
-  }, [editor, setIsDirty, setIsSaving, router]);
+  }, [editor, setIsDirty, setIsSaving, router, documentTypeId, folderId]);
 
   const handleInsertAIText = useCallback((text: string) => {
     const lastBlock = editor.blocks[editor.blocks.length - 1];

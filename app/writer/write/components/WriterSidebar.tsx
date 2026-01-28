@@ -1,6 +1,7 @@
 "use client";
 
 import FieldPalette from "@/components/FieldPalette";
+import FolderSelector from "@/components/FolderSelector";
 
 interface WriterSidebarProps {
   onGoBack: () => void;
@@ -12,6 +13,12 @@ interface WriterSidebarProps {
   draftDocuments: any[];
   onLoadTemplate: (templateId: string) => void;
   onLoadDraft: (draft: any) => void;
+  documentTypes?: any[];
+  selectedDocumentTypeId?: number | null;
+  onSelectDocumentType?: (typeId: number | null) => void;
+  folders?: any[];
+  selectedFolderId?: number | null;
+  onSelectFolder?: (folderId: number | null) => void;
 }
 
 /**
@@ -28,6 +35,12 @@ export default function WriterSidebar({
   draftDocuments,
   onLoadTemplate,
   onLoadDraft,
+  documentTypes = [],
+  selectedDocumentTypeId,
+  onSelectDocumentType,
+  folders = [],
+  selectedFolderId,
+  onSelectFolder,
 }: WriterSidebarProps) {
   return (
     <div
@@ -77,6 +90,34 @@ export default function WriterSidebar({
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="mt-3">
+          <label className="block text-xs font-bold text-gray-700 mb-1">文書種別</label>
+          <select
+            value={selectedDocumentTypeId || ""}
+            onChange={(e) => {
+              const typeId = e.target.value ? parseInt(e.target.value) : null;
+              onSelectDocumentType?.(typeId);
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">種別なし</option>
+            {documentTypes.map((type: any) => (
+              <option key={type.id} value={type.id}>
+                {type.code} - {type.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mt-3">
+          <label className="block text-xs font-bold text-gray-700 mb-1">フォルダー</label>
+          <FolderSelector
+            folders={folders}
+            selectedFolderId={selectedFolderId}
+            onSelect={(folderId) => onSelectFolder?.(folderId)}
+          />
         </div>
       </div>
 
