@@ -30,6 +30,7 @@ model User {
   approvedRevisions     RevisionHistory[]  @relation("RevisionApprovedBy")
   checkedRevisions      RevisionHistory[]  @relation("RevisionCheckedBy")
   createdRevisions      RevisionHistory[]  @relation("RevisionCreatedBy")
+  createdTemplates      Template[]         @relation("TemplateCreator")
 
   @@map("users")
 }
@@ -52,7 +53,7 @@ model Folder {
 model Document {
   id                Int      @id @default(autoincrement())
   title             String
-  status            String   @default("draft") // "draft" | "pending" | "approved"
+  status            String   @default("draft") // "draft" | "checking" | "pending" | "approved"
   creator_id        Int
   template_id       Int?
   folder_id         Int?     // フォルダID（追加）
@@ -89,12 +90,13 @@ model DocumentBlock {
 }
 
 model ApprovalRequest {
-  id           Int      @id @default(autoincrement())
-  document_id  Int      @unique
+  id           Int       @id @default(autoincrement())
+  document_id  Int       @unique
   requester_id Int
-  checker_id   Int      // 確認者ID
-  approver_id  Int      // 承認者ID
-  requested_at DateTime @default(now())
+  checker_id   Int       // 確認者ID（必須）
+  approver_id  Int       // 承認者ID
+  requested_at DateTime  @default(now())
+  checked_at   DateTime? // 確認日時
   comment      String?
 
   // リレーション
@@ -128,7 +130,7 @@ model RevisionHistory {
   revision_symbol   String   // 改定記号（例: "R1", "R2"）
   title             String   // 文書タイトル
   approved_by_id    Int?     // 承認者
-  checked_by_id     Int?     // 確認者（任意）
+  checked_by_id     Int      // 確認者（必須）
   created_by_id     Int      // 改定作業者
   approved_at       DateTime? // 承認日
   created_at        DateTime @default(now())
@@ -136,8 +138,22 @@ model RevisionHistory {
   // リレーション
   document   Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
   approvedBy User?    @relation("RevisionApprovedBy", fields: [approved_by_id], references: [id])
-  checkedBy  User?    @relation("RevisionCheckedBy", fields: [checked_by_id], references: [id])
+  checkedBy  User     @relation("RevisionCheckedBy", fields: [checked_by_id], references: [id])
   createdBy  User     @relation("RevisionCreatedBy", fields: [created_by_id], references: [id])
 
   @@map("revision_history")
+}
+
+model Template {
+  id          Int      @id @default(autoincrement())
+  name        String
+  content     String   // JSON文字列（blocks, paper, orientationなど）
+  created_by  Int
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // リレーション
+  creator User @relation("TemplateCreator", fields: [created_by], references: [id])
+
+  @@map("templates")
 }

@@ -13,6 +13,7 @@ import WriterCanvas from "./components/WriterCanvas";
 import WriterUnsavedDialog from "./components/WriterUnsavedDialog";
 import WriterPropertyBox from "@/components/WriterPropertyBox";
 import AIChat from "@/components/AIChat";
+import FolderSelectModal from "./components/FolderSelectModal";
 
 export default function WriterPage() {
   const router = useRouter();
@@ -25,12 +26,34 @@ export default function WriterPage() {
   const [showPropertyBox, setShowPropertyBox] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
   const [draftDocuments, setDraftDocuments] = useState<any[]>([]);
+  const [showFolderSelect, setShowFolderSelect] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<any>(null);
   
   // 編集補助機能のstate
   const [showGrid, setShowGrid] = useState(true);
   const [gridSize, setGridSize] = useState(20);
   const [snapMode, setSnapMode] = useState(false);
   const [zoom, setZoom] = useState(1);
+
+  // ログイン状態をチェック
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (!response.ok) {
+          console.warn("認証エラー: ログインページにリダイレクトします");
+          router.push("/login");
+        } else {
+          const data = await response.json();
+          console.log("ログイン中のユーザー:", data.user);
+        }
+      } catch (error) {
+        console.error("認証チェックエラー:", error);
+        router.push("/login");
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   // クライアント側でのみlocalStorageからデータを読み込む
   useEffect(() => {

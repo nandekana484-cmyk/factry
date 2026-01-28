@@ -46,7 +46,8 @@ export async function POST(req: Request) {
         throw new Error("Only approved documents can be revised");
       }
 
-      // 承認済みの改定をカウント
+      // 承認済みの改定をカウント（approved_at が null でないもののみ）
+      // これにより、改定開始したが未承認のレコードは除外される
       const approvedRevisions = (document as any).revisionHistories.filter(
         (r: any) => r.approved_at !== null
       );
@@ -54,7 +55,8 @@ export async function POST(req: Request) {
       if (reviseType === "minor") {
         // 軽微修正（承認不要）
         // minorのカウント（M1, M2...）
-        const minorRevisions = (document as any).revisionHistories.filter(
+        // 軽微修正は承認済みのものだけをカウント
+        const minorRevisions = approvedRevisions.filter(
           (r: any) => r.revision_symbol && r.revision_symbol.startsWith("M")
         );
         const minorCount = minorRevisions.length + 1;

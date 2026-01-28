@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       // フォルダ情報を取得して管理番号を生成
       let managementNumber: string | null = null;
       if (folderId) {
-        const folder = await (tx as any).folder.findUnique({
+        const folder = await tx.folder.findUnique({
           where: { id: folderId },
         });
 
@@ -65,11 +65,11 @@ export async function POST(req: Request) {
         managementNumber = `${folder.code}-${seq}`;
       }
 
-      // 文書の状態を pending に更新し、管理番号とフォルダIDを設定
+      // 文書の状態を checking に更新（確認待ち）
       await tx.document.update({
         where: { id: documentId },
         data: {
-          status: "pending",
+          status: "checking",
           folder_id: folderId || null,
           management_number: managementNumber,
         },
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
         },
       });
 
-      return { status: "pending", managementNumber };
+      return { status: "checking", managementNumber };
     });
 
     return NextResponse.json({ ok: true, ...result });

@@ -35,21 +35,21 @@ async function main() {
   console.log('Users created:', { writer, approver });
 
   // フォルダを作成
-  const wiFolder = await (prisma as any).folder.create({
+  const wiFolder = await prisma.folder.create({
     data: {
       name: '作業指示書',
       code: 'WI',
     },
   });
 
-  const manualFolder = await (prisma as any).folder.create({
+  const manualFolder = await prisma.folder.create({
     data: {
       name: 'マニュアル',
       code: 'MANUAL',
     },
   });
 
-  const generalFolder = await (prisma as any).folder.create({
+  const generalFolder = await prisma.folder.create({
     data: {
       name: '一般文書',
       code: 'GENERAL',
@@ -105,8 +105,8 @@ async function main() {
 
   const pendingDoc = await prisma.document.create({
     data: {
-      title: '承認待ち文書のサンプル',
-      status: 'pending',
+      title: '確認中文書のサンプル',
+      status: 'checking',
       creator_id: writer.id,
       blocks: {
         create: [
@@ -114,7 +114,7 @@ async function main() {
             type: 'title',
             content: JSON.stringify({
               type: 'title',
-              text: '承認待ち文書のサンプル',
+              text: '確認中文書のサンプル',
               x: 50,
               y: 50,
               width: 400,
@@ -130,7 +130,7 @@ async function main() {
             type: 'text',
             content: JSON.stringify({
               type: 'text',
-              text: 'この文書は承認を待っています。',
+              text: 'この文書は確認を待っています。',
               x: 50,
               y: 150,
               width: 500,
@@ -147,14 +147,16 @@ async function main() {
       approvalRequest: {
         create: {
           requester_id: writer.id,
-          comment: '承認をお願いします',
+          checker_id: approver.id,
+          approver_id: approver.id,
+          comment: '確認をお願いします',
         },
       },
       approvalHistories: {
         create: {
           user_id: writer.id,
           action: 'submitted',
-          comment: '承認をお願いします',
+          comment: '確認をお願いします',
         },
       },
     },
@@ -206,7 +208,12 @@ async function main() {
           {
             user_id: writer.id,
             action: 'submitted',
-            comment: '承認をお願いします',
+            comment: '確認をお願いします',
+          },
+          {
+            user_id: approver.id,
+            action: 'confirmed',
+            comment: '確認しました',
           },
           {
             user_id: approver.id,
@@ -215,6 +222,20 @@ async function main() {
           },
         ],
       },
+    },
+  });
+
+  // RevisionHistoryに承認済み文書の履歴を追加
+  await prisma.revisionHistory.create({
+    data: {
+      document_id: approvedDoc.id,
+      management_number: 'A-001',
+      revision_symbol: 'R0',
+      title: approvedDoc.title,
+      approved_by_id: approver.id,
+      checked_by_id: approver.id,
+      created_by_id: writer.id,
+      approved_at: new Date(),
     },
   });
 

@@ -26,8 +26,19 @@ export async function POST(req: Request) {
         throw new Error("Document not found");
       }
 
-      if (document.status !== "pending") {
-        throw new Error("Only pending documents can be rejected");
+      // checking または pending のみ差し戻し可能
+      if (document.status !== "checking" && document.status !== "pending") {
+        throw new Error("Only checking or pending documents can be rejected");
+      }
+
+      // checking 状態の場合は確認者のみ、pending 状態の場合は承認者のみが実行可能
+      if (document.approvalRequest) {
+        if (document.status === "checking" && document.approvalRequest.checker_id !== user.id) {
+          throw new Error("Only the assigned checker can reject documents in checking status");
+        }
+        if (document.status === "pending" && document.approvalRequest.approver_id !== user.id) {
+          throw new Error("Only the assigned approver can reject documents in pending status");
+        }
       }
 
       // 文書の状態を draft に戻す

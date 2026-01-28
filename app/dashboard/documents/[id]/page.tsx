@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * ⚠️ 非推奨: このページは LocalStorage ベースの旧アーキテクチャです
+ * 
+ * 新しい文書詳細ページは以下を使用してください:
+ * - /documents/[id] - 文書詳細表示
+ * 
+ * このページは互換性のために残されていますが、将来削除される予定です。
+ */
+
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Document, getDocuments } from "@/lib/folderManagement";

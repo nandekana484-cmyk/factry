@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   try {
     const user = await requireAuth();
     const body = await req.json();
-    const { documentId, title, blocks } = body;
+    const { documentId, title, blocks, folderId } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -44,6 +44,7 @@ export async function POST(req: Request) {
           where: { id: documentId },
           data: {
             title,
+            folder_id: folderId !== undefined ? folderId : existing.folder_id,
             updated_at: new Date(),
           },
         });
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
             title,
             status: "draft",
             creator_id: user.id,
+            folder_id: folderId || null,
           },
         });
       }

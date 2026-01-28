@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * ⚠️ 非推奨: このページは LocalStorage ベースの旧アーキテクチャです
+ * 
+ * 新しい検索機能は以下を使用してください:
+ * - GET /api/search?q=keyword
+ * 
+ * このページは互換性のために残されていますが、将来削除される予定です。
+ */
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import SearchResultCard, { SearchResult } from "@/components/SearchResultCard";

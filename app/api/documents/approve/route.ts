@@ -46,13 +46,14 @@ export async function POST(req: Request) {
         throw new Error("Creator cannot approve their own document");
       }
 
-      // 確認者は承認できない
-      if (document.approvalRequest.checker_id === user.id) {
-        throw new Error("Checker cannot approve the document");
+      // 確認者による確認済み（pending）のみ承認可能
+      if (document.status !== "pending") {
+        throw new Error("Only pending documents can be approved");
       }
 
-      if (document.status !== "pending" && document.status !== "checking") {
-        throw new Error("Only pending or checking documents can be approved");
+      // 確認者による確認が完了していることを検証
+      if (!document.approvalRequest.checked_at) {
+        throw new Error("Document must be checked before approval");
       }
 
       // 改定記号を計算（承認済みの改訂履歴から最新を取得）
@@ -72,25 +73,43 @@ export async function POST(req: Request) {
         }
       }
 
-      // 改定の場合、新しい管理番号を生成
+      // 管理番号を生成（初回承認時 or 改定時）
       let newManagementNumber = document.management_number;
-      if (isRevision && document.folder_id) {
-        const folder = await (tx as any).folder.findUnique({
-          where: { id: document.folder_id },
-        });
-
-        if (folder) {
-          // フォルダ内の文書数をカウント
-          const folderDocCount = await tx.document.count({
-            where: {
-              folder_id: document.folder_id,
-              management_number: { startsWith: folder.code },
-            },
+      
+      if (!document.management_number || isRevision) {
+        // 管理番号がまだない場合（初回承認）or 改定の場合
+        if (document.folder_id) {
+          // フォルダあり: フォルダコード + 連番
+          const folder = await tx.folder.findUnique({
+            where: { id: document.folder_id },
           });
 
-          // 新しい管理番号を生成
-          const seq = (folderDocCount + 1).toString().padStart(3, "0");
-          newManagementNumber = `${folder.code}-${seq}`;
+          if (folder) {
+            // フォルダ内の承認済み文書数をカウント
+            const folderDocCount = await tx.document.count({
+              where: {
+                folder_id: document.folder_id,
+                status: "approved",
+                management_number: { not: null },
+              },
+            });
+
+            // 新しい管理番号を生成
+            const seq = (folderDocCount + 1).toString().padStart(3, "0");
+            newManagementNumber = `${folder.code}-${seq}`;
+          }
+        } else {
+          // フォルダなし: A- + 連番
+          const docsWithoutFolder = await tx.document.count({
+            where: {
+              folder_id: null,
+              status: "approved",
+              management_number: { not: null },
+            },
+          });
+          
+          const seq = (docsWithoutFolder + 1).toString().padStart(3, "0");
+          newManagementNumber = `A-${seq}`;
         }
       }
 
@@ -118,7 +137,7 @@ export async function POST(req: Request) {
           revision_symbol: revisionSymbol,
           title: document.title,
           approved_by_id: user.id,
-          checked_by_id: (document.approvalRequest as any)!.checker_id,
+          checked_by_id: document.approvalRequest.checker_id,
           created_by_id: document.creator_id,
           approved_at: new Date(),
         },
@@ -159,8 +178,7 @@ export async function POST(req: Request) {
     if (
       error.message === "Only the assigned approver can approve this document" ||
       error.message === "Creator cannot approve their own document" ||
-      error.message === "Checker cannot approve the document" ||
-      error.message === "Only pending or checking documents can be approved"
+      error.message === "Only pending documents can be approved"
     ) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }

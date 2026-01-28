@@ -7,7 +7,7 @@ export async function GET() {
   try {
     await requireAuth();
 
-    const folders = await (prisma as any).folder.findMany({
+    const folders = await prisma.folder.findMany({
       orderBy: { name: "asc" },
       include: {
         _count: {
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const folder = await (prisma as any).folder.create({
+    const folder = await prisma.folder.create({
       data: {
         name,
         code: code.toUpperCase(),

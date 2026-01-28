@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * ⚠️ 非推奨: このページは LocalStorage ベースの旧アーキテクチャです
+ * 
+ * 新しい文書管理システムは以下を使用してください:
+ * - /writer/write - 文書作成
+ * - /documents - 文書一覧
+ * - /approver - 承認ダッシュボード
+ * 
+ * このページは互換性のために残されていますが、将来削除される予定です。
+ */
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import FolderTree from "@/components/FolderTree";

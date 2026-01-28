@@ -31,8 +31,9 @@ export async function POST(req: Request) {
         throw new Error("Only the creator can withdraw the document");
       }
 
-      if (document.status !== "pending") {
-        throw new Error("Only pending documents can be withdrawn");
+      // checking または pending のみ引き戻し可能
+      if (document.status !== "checking" && document.status !== "pending") {
+        throw new Error("Only checking or pending documents can be withdrawn");
       }
 
       // 文書の状態を draft に戻す
