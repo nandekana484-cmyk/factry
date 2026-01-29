@@ -7,101 +7,87 @@ datasource db {
   url      = "file:../data/database.sqlite"
 }
 
-// SQLiteはenum型をサポートしていないため、String型を使用
-// アプリケーション層で以下の値を使用する：
-// DocumentStatus: "draft" | "pending" | "approved"
-// ApprovalAction: "submitted" | "approved" | "rejected" | "withdrawn" | "revised"
-// UserRole: "admin" | "approver" | "user"
-
 model User {
-  id         Int       @id @default(autoincrement())
-  name       String
-  email      String    @unique(map: "sqlite_autoindex_users_1")
-  password   String
-  role       String    @default("user") // "admin" | "approver" | "user"
-  created_at DateTime  @default(now())
-
-  // リレーション
-  createdDocuments      Document[]         @relation("DocumentCreator")
-  approvalRequests      ApprovalRequest[]  @relation("ApprovalRequester")
-  approvalCheckers      ApprovalRequest[]  @relation("ApprovalChecker")
-  approvalApprovers     ApprovalRequest[]  @relation("ApprovalApprover")
-  approvalHistories     ApprovalHistory[]
-  approvedRevisions     RevisionHistory[]  @relation("RevisionApprovedBy")
-  checkedRevisions      RevisionHistory[]  @relation("RevisionCheckedBy")
-  createdRevisions      RevisionHistory[]  @relation("RevisionCreatedBy")
-  createdTemplates      Template[]         @relation("TemplateCreator")
+  id                Int               @id @default(autoincrement())
+  name              String
+  email             String            @unique(map: "sqlite_autoindex_users_1")
+  password          String
+  role              String            @default("user")
+  created_at        DateTime          @default(now())
+  approvalHistories ApprovalHistory[]
+  approvalApprovers ApprovalRequest[] @relation("ApprovalApprover")
+  approvalCheckers  ApprovalRequest[] @relation("ApprovalChecker")
+  approvalRequests  ApprovalRequest[] @relation("ApprovalRequester")
+  createdDocuments  Document[]        @relation("DocumentCreator")
+  createdRevisions  RevisionHistory[] @relation("RevisionCreatedBy")
+  checkedRevisions  RevisionHistory[] @relation("RevisionCheckedBy")
+  approvedRevisions RevisionHistory[] @relation("RevisionApprovedBy")
+  createdTemplates  Template[]        @relation("TemplateCreator")
 
   @@map("users")
 }
 
 model Folder {
-  id          Int      @id @default(autoincrement())
-  name        String
-  code        String   @unique // 管理番号用コード（例: "WI", "MANUAL"）
-  parent_id   Int?
-  created_at  DateTime @default(now())
-
-  // リレーション
-  parent      Folder?     @relation("FolderTree", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  children    Folder[]    @relation("FolderTree")
-  documents   Document[]
+  id         Int        @id @default(autoincrement())
+  name       String
+  code       String     @unique
+  parent_id  Int?
+  created_at DateTime   @default(now())
+  documents  Document[]
+  parent     Folder?    @relation("FolderTree", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children   Folder[]   @relation("FolderTree")
 
   @@map("folders")
 }
 
 model DocumentType {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique // 文書種別コード（例: "RP", "WI", "MN"）
-  name        String   // 文書種別名（例: "報告書", "手順書", "マニュアル"）
-  description String?  // 説明（任意）
-  order       Int      @default(0) // 並び順
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-
-  // リレーション
+  id          Int        @id @default(autoincrement())
+  code        String     @unique
+  name        String
+  description String?
+  order       Int        @default(0)
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
   documents   Document[]
 
   @@map("document_types")
 }
 
 model Document {
-  id                Int      @id @default(autoincrement())
+  id                Int               @id @default(autoincrement())
   title             String
-  status            String   @default("draft") // "draft" | "checking" | "pending" | "approved"
+  status            String            @default("draft")
   creator_id        Int
   template_id       Int?
-  folder_id         Int?     // フォルダID
-  document_type_id  Int?     // 文書種別ID（追加）
-  management_number String?  // 管理番号（例: "QA-PRJ1-RP-0001"）
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
-
-  // リレーション
-  creator           User              @relation("DocumentCreator", fields: [creator_id], references: [id])
-  folder            Folder?           @relation(fields: [folder_id], references: [id])
-  documentType      DocumentType?     @relation(fields: [document_type_id], references: [id])
-  blocks            DocumentBlock[]
-  approvalRequest   ApprovalRequest?
+  folder_id         Int
+  document_type_id  Int?
+  sequence          Int
+  revision          Int               @default(0)
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @updatedAt
   approvalHistories ApprovalHistory[]
+  approvalRequest   ApprovalRequest?
+  blocks            DocumentBlock[]
+  documentType      DocumentType?     @relation(fields: [document_type_id], references: [id])
+  folder            Folder            @relation(fields: [folder_id], references: [id])
+  creator           User              @relation("DocumentCreator", fields: [creator_id], references: [id])
   revisionHistories RevisionHistory[]
 
+  @@unique([folder_id, sequence])
   @@map("documents")
 }
 
 model DocumentBlock {
-  id          Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   document_id Int
-  type        String  // text, title, shape, image, etc.
-  content     String  // JSON string
+  type        String
+  content     String
   position_x  Float
   position_y  Float
   width       Float
   height      Float
-  sort_order  Int     @default(0)
-
-  // リレーション
-  document Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  sort_order  Int      @default(0)
+  document    Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
 
   @@map("document_blocks")
 }
@@ -110,17 +96,15 @@ model ApprovalRequest {
   id           Int       @id @default(autoincrement())
   document_id  Int       @unique
   requester_id Int
-  checker_id   Int       // 確認者ID（必須）
-  approver_id  Int       // 承認者ID
+  checker_id   Int
+  approver_id  Int
   requested_at DateTime  @default(now())
-  checked_at   DateTime? // 確認日時
   comment      String?
-
-  // リレーション
-  document  Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
-  requester User     @relation("ApprovalRequester", fields: [requester_id], references: [id])
-  checker   User     @relation("ApprovalChecker", fields: [checker_id], references: [id])
-  approver  User     @relation("ApprovalApprover", fields: [approver_id], references: [id])
+  checked_at   DateTime?
+  approver     User      @relation("ApprovalApprover", fields: [approver_id], references: [id])
+  checker      User      @relation("ApprovalChecker", fields: [checker_id], references: [id])
+  requester    User      @relation("ApprovalRequester", fields: [requester_id], references: [id])
+  document     Document  @relation(fields: [document_id], references: [id], onDelete: Cascade)
 
   @@map("approval_requests")
 }
@@ -129,48 +113,42 @@ model ApprovalHistory {
   id          Int      @id @default(autoincrement())
   document_id Int
   user_id     Int
-  action      String   // "submitted" | "approved" | "rejected" | "withdrawn" | "revised"
+  action      String
   comment     String?
   created_at  DateTime @default(now())
-
-  // リレーション
-  document Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [user_id], references: [id])
+  user        User     @relation(fields: [user_id], references: [id])
+  document    Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
 
   @@map("approval_history")
 }
 
 model RevisionHistory {
-  id                Int      @id @default(autoincrement())
+  id                Int       @id @default(autoincrement())
   document_id       Int
-  management_number String   // 管理番号（例: "A-1", "A-2"）
-  revision_symbol   String   // 改定記号（例: "R1", "R2"）
-  title             String   // 文書タイトル
-  approved_by_id    Int?     // 承認者
-  checked_by_id     Int      // 確認者（必須）
-  created_by_id     Int      // 改定作業者
-  approved_at       DateTime? // 承認日
-  created_at        DateTime @default(now())
-
-  // リレーション
-  document   Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
-  approvedBy User?    @relation("RevisionApprovedBy", fields: [approved_by_id], references: [id])
-  checkedBy  User     @relation("RevisionCheckedBy", fields: [checked_by_id], references: [id])
-  createdBy  User     @relation("RevisionCreatedBy", fields: [created_by_id], references: [id])
+  management_number String
+  revision_symbol   String
+  title             String
+  approved_by_id    Int?
+  checked_by_id     Int
+  created_by_id     Int
+  approved_at       DateTime?
+  created_at        DateTime  @default(now())
+  createdBy         User      @relation("RevisionCreatedBy", fields: [created_by_id], references: [id])
+  checkedBy         User      @relation("RevisionCheckedBy", fields: [checked_by_id], references: [id])
+  approvedBy        User?     @relation("RevisionApprovedBy", fields: [approved_by_id], references: [id])
+  document          Document  @relation(fields: [document_id], references: [id], onDelete: Cascade)
 
   @@map("revision_history")
 }
 
 model Template {
-  id          Int      @id @default(autoincrement())
-  name        String
-  content     String   // JSON文字列（blocks, paper, orientationなど）
-  created_by  Int
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-
-  // リレーション
-  creator User @relation("TemplateCreator", fields: [created_by], references: [id])
+  id         Int      @id @default(autoincrement())
+  name       String
+  content    String
+  created_by Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  creator    User     @relation("TemplateCreator", fields: [created_by], references: [id])
 
   @@map("templates")
 }

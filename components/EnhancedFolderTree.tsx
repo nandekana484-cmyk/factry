@@ -23,7 +23,7 @@ interface EnhancedFolderTreeProps {
   selectedTypeId: number | null;
   onSelectFolder: (folderId: number, typeId: number | null) => void;
   onAddFolder?: (parentId: number | null, name: string, code: string) => void;
-  onEditFolder?: (folderId: number, name: string, code: string) => void;
+  onEditFolder?: (folderId: number, name: string, code: string, parent_id: number | null) => void;
   onDeleteFolder?: (folderId: number) => void;
   editable?: boolean;
 }
@@ -42,7 +42,7 @@ export default function EnhancedFolderTree({
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(new Set());
   const [expandedTypeIds, setExpandedTypeIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", code: "" });
+  const [editForm, setEditForm] = useState({ name: "", code: "", parent_id: null as number | null });
   const [showAddForm, setShowAddForm] = useState<number | null>(null);
   const [addForm, setAddForm] = useState({ name: "", code: "" });
 
@@ -151,10 +151,20 @@ export default function EnhancedFolderTree({
                 className="flex-1 px-1 py-0.5 text-xs border rounded"
                 placeholder="名称"
               />
+              <select
+                value={editForm.parent_id ?? ''}
+                onChange={e => setEditForm({ ...editForm, parent_id: e.target.value === '' ? null : Number(e.target.value) })}
+                className="text-xs border rounded px-1 py-0.5"
+              >
+                <option value="">ルート</option>
+                {folders.filter(f => f.id !== folder.id).map(f => (
+                  <option key={f.id} value={f.id}>{f.name}（{f.code}）</option>
+                ))}
+              </select>
               <button
                 onClick={() => {
                   if (editForm.code && editForm.name && onEditFolder) {
-                    onEditFolder(folder.id, editForm.name, editForm.code);
+                    onEditFolder(folder.id, editForm.name, editForm.code, editForm.parent_id);
                     setEditingId(null);
                   }
                 }}
@@ -182,7 +192,7 @@ export default function EnhancedFolderTree({
                   <button
                     onClick={() => {
                       setEditingId(folder.id);
-                      setEditForm({ name: folder.name, code: folder.code });
+                      setEditForm({ name: folder.name, code: folder.code, parent_id: folder.parent_id });
                     }}
                     className="text-xs px-2 py-0.5 bg-gray-200 rounded hover:bg-gray-300"
                   >
@@ -268,6 +278,7 @@ export default function EnhancedFolderTree({
     );
   };
 
+  console.log('[EnhancedFolderTree] folders prop:', folders);
   return (
     <div className="bg-white border rounded-lg overflow-hidden">
       <div className="p-2 bg-gray-100 font-bold text-sm border-b flex items-center justify-between">

@@ -82,6 +82,9 @@ async function main() {
       title: '下書き文書のサンプル',
       status: 'draft',
       creator_id: writer.id,
+      folder_id: wiFolder.id,
+      sequence: 1,
+      revision: 0,
       blocks: {
         create: [
           {
@@ -126,6 +129,9 @@ async function main() {
       title: '確認中文書のサンプル',
       status: 'checking',
       creator_id: writer.id,
+      folder_id: wiFolder.id,
+      sequence: 2,
+      revision: 0,
       blocks: {
         create: [
           {
@@ -185,6 +191,9 @@ async function main() {
       title: '承認済み文書のサンプル',
       status: 'approved',
       creator_id: writer.id,
+      folder_id: wiFolder.id,
+      sequence: 3,
+      revision: 0,
       blocks: {
         create: [
           {

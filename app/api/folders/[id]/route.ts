@@ -43,11 +43,13 @@ export async function GET(
 // フォルダ更新
 export async function PUT(
   req: Request,
-  ctx: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAuth();
-    const { name, code } = await req.json();
+    const body = await req.json();
+    console.log('[API][PUT] req.json:', body);
+    const { name, code, parentId } = body;
 
     if (!name || !code) {
       return NextResponse.json(
@@ -56,15 +58,18 @@ export async function PUT(
       );
     }
 
-    // params.idがPromiseの場合に対応
-    const id = typeof ctx.params.id === 'string' ? ctx.params.id : await ctx.params.id;
+    // paramsがPromiseの場合にawaitでアンラップ
+    const { id } = await ctx.params;
 
+    const updateData = {
+      name,
+      code: code.toUpperCase(),
+      parent_id: parentId,
+    };
+    console.log('[API][PUT] prisma.folder.update data:', updateData);
     const folder = await prisma.folder.update({
       where: { id: parseInt(id) },
-      data: {
-        name,
-        code: code.toUpperCase(),
-      },
+      data: updateData,
     });
 
     return NextResponse.json({ ok: true, folder });

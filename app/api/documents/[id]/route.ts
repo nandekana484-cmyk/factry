@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { generateManagementNumber } from "@/lib/documentNumber";
 
 // 文書取得
 export async function GET(
@@ -78,23 +79,33 @@ export async function GET(
         id: document.id,
         title: document.title,
         status: document.status,
-        managementNumber: (document as any).management_number,
-        creator: (document as any).creator,
+        managementNumber: generateManagementNumber(
+          document.folder,
+          document.sequence,
+          document.revision
+        ),
+        creator: document.creator,
         blocks,
-        approvalRequest: (document as any).approvalRequest,
-        latestRevision: (document as any).revisionHistories[0] ? {
-          id: (document as any).revisionHistories[0].id,
-          managementNumber: (document as any).revisionHistories[0].management_number,
-          revisionSymbol: (document as any).revisionHistories[0].revision_symbol,
-          title: (document as any).revisionHistories[0].title,
-          approvedBy: (document as any).revisionHistories[0].approvedBy,
-          checkedBy: (document as any).revisionHistories[0].checkedBy,
-          createdBy: (document as any).revisionHistories[0].createdBy,
-          approvedAt: (document as any).revisionHistories[0].approved_at,
-        } : null,
-        revisionCount: (document as any)._count.revisionHistories,
-        createdAt: (document as any).created_at,
-        updatedAt: (document as any).updated_at,
+        approvalRequest: document.approvalRequest,
+        latestRevision: document.revisionHistories[0]
+          ? {
+              id: document.revisionHistories[0].id,
+              managementNumber: generateManagementNumber(
+                document.folder,
+                document.sequence,
+                document.revision
+              ),
+              revisionSymbol: document.revisionHistories[0].revision_symbol,
+              title: document.revisionHistories[0].title,
+              approvedBy: document.revisionHistories[0].approvedBy,
+              checkedBy: document.revisionHistories[0].checkedBy,
+              createdBy: document.revisionHistories[0].createdBy,
+              approvedAt: document.revisionHistories[0].approved_at,
+            }
+          : null,
+        revisionCount: document._count.revisionHistories,
+        createdAt: document.created_at,
+        updatedAt: document.updated_at,
       },
     });
   } catch (error) {

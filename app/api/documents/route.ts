@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { generateManagementNumber } from "@/lib/documentNumber";
 
 // 文書一覧取得
 export async function GET(req: Request) {
@@ -77,21 +78,32 @@ export async function GET(req: Request) {
         id: doc.id,
         title: doc.title,
         status: doc.status,
-        managementNumber: (doc as any).management_number,
-        creator: (doc as any).creator,
-        folder: (doc as any).folder,
-        documentType: (doc as any).documentType,
-        approvalRequest: (doc as any).approvalRequest,
-        latestRevision: (doc as any).revisionHistories[0] ? {
-          id: (doc as any).revisionHistories[0].id,
-          managementNumber: (doc as any).revisionHistories[0].management_number,
-          revisionSymbol: (doc as any).revisionHistories[0].revision_symbol,
-          approvedBy: (doc as any).revisionHistories[0].approvedBy,
-          approvedAt: (doc as any).revisionHistories[0].approved_at,
-        } : null,
-        blockCount: (doc as any)._count.blocks,
-        createdAt: (doc as any).created_at,
-        updatedAt: (doc as any).updated_at,
+        managementNumber: generateManagementNumber(
+          doc.folder,
+          doc.sequence,
+          doc.revision
+        ),
+        creator: doc.creator,
+        folder: doc.folder,
+        documentType: doc.documentType,
+        approvalRequest: doc.approvalRequest,
+        latestRevision: doc.revisionHistories[0]
+          ? {
+              id: doc.revisionHistories[0].id,
+              // 履歴の管理番号も動的生成（必要なら）
+              managementNumber: generateManagementNumber(
+                doc.folder,
+                doc.sequence,
+                doc.revision
+              ),
+              revisionSymbol: doc.revisionHistories[0].revision_symbol,
+              approvedBy: doc.revisionHistories[0].approvedBy,
+              approvedAt: doc.revisionHistories[0].approved_at,
+            }
+          : null,
+        blockCount: doc._count.blocks,
+        createdAt: doc.created_at,
+        updatedAt: doc.updated_at,
       })),
     });
   } catch (error) {
@@ -174,42 +186,31 @@ export async function POST(req: Request) {
     }
 
     // 新規文書作成
-    // フォルダ別の管理番号を生成
+    // フォルダ情報取得
     const folder = await prisma.folder.findUnique({
       where: { id: folderId },
+      include: { parent: true },
     });
-
     if (!folder) {
       return NextResponse.json(
         { error: "Folder not found" },
         { status: 404 }
       );
     }
-
-    // 同じフォルダ内の最大管理番号を取得
+    // そのフォルダ内の最大sequenceを取得
     const lastDocument = await prisma.document.findFirst({
       where: { folder_id: folderId },
-      orderBy: { management_number: "desc" },
+      orderBy: { sequence: "desc" },
     });
-
-    let nextNumber = 1;
-    if (lastDocument && lastDocument.management_number) {
-      // 管理番号から数字部分を抽出（例: "WI-001" -> 1）
-      const match = lastDocument.management_number.match(/(\d+)$/);
-      if (match) {
-        nextNumber = parseInt(match[1]) + 1;
-      }
-    }
-
-    const managementNumber = `${folder.code}-${String(nextNumber).padStart(3, "0")}`;
-
+    const nextSequence = lastDocument ? lastDocument.sequence + 1 : 1;
     const document = await prisma.document.create({
       data: {
         title,
         status,
         creator_id: user.id,
         folder_id: folderId,
-        management_number: managementNumber,
+        sequence: nextSequence,
+        revision: 0,
         blocks: {
           create: (blocks || []).map((block: any, index: number) => ({
             type: block.type || "text",
@@ -224,10 +225,29 @@ export async function POST(req: Request) {
       },
       include: {
         blocks: true,
+        folder: { select: { id: true, code: true, parent: { select: { code: true } } } },
       },
     });
-
-    return NextResponse.json({ ok: true, document });
+    return NextResponse.json({
+      ok: true,
+      document: {
+        id: document.id,
+        title: document.title,
+        status: document.status,
+        managementNumber: generateManagementNumber(
+          document.folder,
+          document.sequence,
+          document.revision
+        ),
+        creator_id: document.creator_id,
+        folder_id: document.folder_id,
+        sequence: document.sequence,
+        revision: document.revision,
+        blocks: document.blocks,
+        createdAt: document.created_at,
+        updatedAt: document.updated_at,
+      },
+    });
   } catch (error: any) {
     console.error("Create/Update document error:", error);
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { generateManagementNumber } from "@/lib/documentNumber";
 
 // 改訂履歴取得
 export async function GET(
@@ -25,6 +26,16 @@ export async function GET(
     }
 
     // 改訂履歴を取得（承認済みのもののみ、新しい順）
+    const documentWithFolder = await prisma.document.findUnique({
+      where: { id: documentId },
+      include: { folder: { include: { parent: true } } },
+    });
+    if (!documentWithFolder) {
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 }
+      );
+    }
     const revisions = await prisma.revisionHistory.findMany({
       where: {
         document_id: documentId,
@@ -43,11 +54,15 @@ export async function GET(
       },
       orderBy: { approved_at: "desc" },
     });
-
-    // レスポンス形式を整形
+    // sequence/revisionはdocumentから取得
+    const managementNumber = generateManagementNumber(
+      documentWithFolder.folder,
+      documentWithFolder.sequence,
+      documentWithFolder.revision
+    );
     const revisionsWithUsers = (revisions as any[]).map((rev: any) => ({
       id: rev.id,
-      managementNumber: rev.management_number,
+      managementNumber,
       revisionSymbol: rev.revision_symbol,
       title: rev.title,
       approvedBy: rev.approvedBy
@@ -60,7 +75,6 @@ export async function GET(
       approvedAt: rev.approved_at,
       createdAt: rev.created_at,
     }));
-
     return NextResponse.json({
       ok: true,
       revisions: revisionsWithUsers,

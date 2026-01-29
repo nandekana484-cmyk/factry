@@ -7,13 +7,14 @@
     "db:init": "node -r ts-node/register ./lib/db-init.ts",
     "db:init:js": "node ./lib/db-init.js",
     "db:init:tsc": "tsc ./lib/db-init.ts --outDir ./.tmp-tsc --module commonjs --target es2020 --esModuleInterop && node ./.tmp-tsc/db-init.js",
-    "db:seed": "ts-node prisma/seed.ts",
+    "db:seed": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed.ts",
+    "db:seed-migrate": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-migrate-documents.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed.ts"
   },
   "dependencies": {
     "@editorjs/editorjs": "^2.31.1",

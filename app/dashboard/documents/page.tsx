@@ -22,7 +22,7 @@ interface Document {
   id: number;
   title: string;
   status: string;
-  management_number: string | null;
+  managementNumber: string | null;
   folder?: {
     id: number;
     name: string;
@@ -70,7 +70,7 @@ export default function DocumentsPage() {
       if (response.ok) {
         const data = await response.json();
         const apiFolders = data.folders || [];
-        
+        console.log('[Dashboard] apiFolders:', apiFolders);
         // 階層構造を構築
         const buildTree = (items: Folder[]): Folder[] => {
           const map = new Map<number, Folder>();
@@ -164,12 +164,12 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleEditFolder = async (folderId: number, name: string, code: string) => {
+  const handleEditFolder = async (folderId: number, name: string, code: string, parentId: number | null) => {
     try {
       const response = await fetch(`/api/folders/${folderId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, code: code.toUpperCase() }),
+        body: JSON.stringify({ name, code: code.toUpperCase(), parentId }),
       });
 
       if (!response.ok) {
@@ -180,6 +180,11 @@ export default function DocumentsPage() {
 
       alert("フォルダーを更新しました");
       await loadFolders();
+      // 編集フォーム解除は最新データ取得後に行う
+      setTimeout(() => {
+        const editElem = document.activeElement as HTMLElement | null;
+        if (editElem) editElem.blur();
+      }, 0);
     } catch (error) {
       console.error("Failed to edit folder:", error);
       alert("フォルダーの更新に失敗しました");
@@ -310,7 +315,7 @@ export default function DocumentsPage() {
                         >
                           <td className="px-4 py-3">
                             <span className="font-mono text-sm font-semibold text-blue-600">
-                              {doc.management_number || "-"}
+                              {doc.managementNumber || "-"}
                             </span>
                           </td>
                           <td className="px-4 py-3 font-medium">{doc.title}</td>
