@@ -32,7 +32,7 @@ export default function DocumentsPage() {
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "draft" | "pending" | "approved">("all");
+  const [filter, setFilter] = useState<"checking" | "pending">("checking");
   const [documentTypes, setDocumentTypes] = useState<any[]>([]);
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
 
@@ -59,12 +59,10 @@ export default function DocumentsPage() {
   const fetchDocuments = async () => {
     try {
       const params = new URLSearchParams();
-      if (filter !== "all") params.append("status", filter);
+      params.append("status", filter);
       if (selectedTypeId) params.append("typeId", String(selectedTypeId));
       
-      const url = params.toString() 
-        ? `/api/documents?${params.toString()}`
-        : "/api/documents";
+      const url = `/api/documents?${params.toString()}`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.ok) {
@@ -80,6 +78,7 @@ export default function DocumentsPage() {
   const getStatusBadge = (status: string) => {
     const styles = {
       draft: "bg-gray-200 text-gray-800",
+      checking: "bg-blue-200 text-blue-800",
       pending: "bg-yellow-200 text-yellow-800",
       approved: "bg-green-200 text-green-800",
     };
@@ -89,6 +88,7 @@ export default function DocumentsPage() {
   const getStatusLabel = (status: string) => {
     const labels = {
       draft: "下書き",
+      checking: "確認待ち",
       pending: "承認待ち",
       approved: "承認済み",
     };
@@ -125,8 +125,8 @@ export default function DocumentsPage() {
         </div>
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">文書一覧</h1>
-          <p className="text-gray-600">すべての文書を表示します</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">承認フロー</h1>
+          <p className="text-gray-600">確認・承認待ちの文書を表示します</p>
         </div>
 
         {/* フィルター */}
@@ -134,24 +134,14 @@ export default function DocumentsPage() {
           {/* ステータスフィルター */}
           <div className="flex gap-2">
             <button
-              onClick={() => setFilter("all")}
+              onClick={() => setFilter("checking")}
               className={`px-4 py-2 rounded-lg font-medium transition ${
-                filter === "all"
+                filter === "checking"
                   ? "bg-blue-600 text-white"
                   : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
             >
-              すべて
-            </button>
-            <button
-              onClick={() => setFilter("draft")}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                filter === "draft"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              下書き
+              確認待ち
             </button>
             <button
               onClick={() => setFilter("pending")}
@@ -162,16 +152,6 @@ export default function DocumentsPage() {
               }`}
             >
               承認待ち
-            </button>
-            <button
-              onClick={() => setFilter("approved")}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                filter === "approved"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              承認済み
             </button>
           </div>
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
-// 確認処理（pending → checking）
+// 確認処理（checking → pending）
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
@@ -30,12 +30,9 @@ export async function POST(req: Request) {
         throw new Error("Approval request not found");
       }
 
-      // 確認者または承認者のみ実行可能
-      const isChecker = (document.approvalRequest as any).checker_id === user.id;
-      const isApprover = (document.approvalRequest as any).approver_id === user.id;
-      
-      if (!isChecker && !isApprover) {
-        throw new Error("Only the assigned checker or approver can check this document");
+      // 確認者のみ実行可能
+      if (document.approvalRequest.checker_id !== user.id) {
+        throw new Error("Only the assigned checker can check this document");
       }
 
       // 作成者は確認できない
@@ -43,14 +40,21 @@ export async function POST(req: Request) {
         throw new Error("Creator cannot check their own document");
       }
 
-      if (document.status !== "pending") {
-        throw new Error("Only pending documents can be checked");
+      // checking状態のみ確認可能
+      if (document.status !== "checking") {
+        throw new Error("Only checking documents can be checked");
       }
 
-      // 文書の状態を checking に更新
+      // 文書の状態を pending に更新
       await tx.document.update({
         where: { id: documentId },
-        data: { status: "checking" },
+        data: { status: "pending" },
+      });
+
+      // ApprovalRequestのchecked_atを更新
+      await tx.approvalRequest.update({
+        where: { document_id: documentId },
+        data: { checked_at: new Date() },
       });
 
       // 履歴を記録
@@ -63,7 +67,7 @@ export async function POST(req: Request) {
         },
       });
 
-      return { status: "checking" };
+      return { status: "pending" };
     });
 
     return NextResponse.json({ ok: true, ...result });
@@ -82,9 +86,9 @@ export async function POST(req: Request) {
     }
 
     if (
-      error.message === "Only the assigned checker or approver can check this document" ||
+      error.message === "Only the assigned checker can check this document" ||
       error.message === "Creator cannot check their own document" ||
-      error.message === "Only pending documents can be checked"
+      error.message === "Only checking documents can be checked"
     ) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }

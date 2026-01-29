@@ -43,17 +43,27 @@ export async function GET(
 // フォルダ更新
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  ctx: { params: { id: string } }
 ) {
   try {
     await requireAuth();
     const { name, code } = await req.json();
 
+    if (!name || !code) {
+      return NextResponse.json(
+        { error: "name and code are required" },
+        { status: 400 }
+      );
+    }
+
+    // params.idがPromiseの場合に対応
+    const id = typeof ctx.params.id === 'string' ? ctx.params.id : await ctx.params.id;
+
     const folder = await prisma.folder.update({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
       data: {
-        ...(name && { name }),
-        ...(code && { code: code.toUpperCase() }),
+        name,
+        code: code.toUpperCase(),
       },
     });
 

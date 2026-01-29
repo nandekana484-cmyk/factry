@@ -58,6 +58,24 @@ async function main() {
 
   console.log('Folders created:', { wiFolder, manualFolder, generalFolder });
 
+  // --- ここから重複code検出ロジック ---
+  const allFolders = await prisma.folder.findMany();
+  const codeCount: Record<string, number> = {};
+  for (const folder of allFolders) {
+    codeCount[folder.code] = (codeCount[folder.code] || 0) + 1;
+  }
+  const duplicates = Object.entries(codeCount).filter(([code, count]) => count > 1);
+  if (duplicates.length > 0) {
+    console.log('重複しているcode:', duplicates.map(([code, count]) => code));
+    for (const [dupCode] of duplicates) {
+      const dups = allFolders.filter(f => f.code === dupCode);
+      console.log(`code=${dupCode} の重複レコード:`, dups);
+    }
+  } else {
+    console.log('codeの重複はありません');
+  }
+  // --- ここまで重複code検出ロジック ---
+
   // サンプル文書を作成
   const draftDoc = await prisma.document.create({
     data: {

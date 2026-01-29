@@ -84,6 +84,8 @@ export default function FoldersAdminPage() {
     }
 
     try {
+      console.log("Updating folder:", { id, code: editForm.code, name: editForm.name });
+      
       const res = await fetch(`/api/folders/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -93,15 +95,18 @@ export default function FoldersAdminPage() {
         }),
       });
 
+      console.log("Response status:", res.status);
+      const data = await res.json();
+      console.log("Response data:", data);
+
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "更新に失敗しました");
+        throw new Error(data.error || "更新に失敗しました");
       }
 
       alert("フォルダーを更新しました");
       setEditingId(null);
       setEditForm({});
-      fetchFolders();
+      await fetchFolders();
     } catch (error: any) {
       console.error("Failed to update folder:", error);
       alert(error.message || "フォルダーの更新に失敗しました");

@@ -187,7 +187,7 @@ export default function WriterPage() {
   return (
     <div className="flex h-screen overflow-hidden no-print-container">
       {/* 左サイドバー */}
-      <div className="no-print">
+      <div className="no-print h-full">
         <WriterSidebar
           onGoBack={handleGoBack}
           onAddTextBlock={actions.handleAddTextBlock}

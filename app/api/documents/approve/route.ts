@@ -21,6 +21,7 @@ export async function POST(req: Request) {
         where: { id: documentId },
         include: {
           approvalRequest: true,
+          documentType: true,
           revisionHistories: {
             where: { approved_at: { not: null } },
             orderBy: { approved_at: "desc" },
@@ -79,43 +80,26 @@ export async function POST(req: Request) {
       if (!document.management_number || isRevision) {
         // 管理番号がまだない場合（初回承認）or 改定の場合
         if (document.folder_id) {
-          // フォルダあり: フォルダコード + 文書種別コード + 連番
+          // フォルダあり: フォルダコード + 連番
           const folder = await tx.folder.findUnique({
             where: { id: document.folder_id },
           });
 
-          // 文書種別を取得
-          let documentType = null;
-          if ((document as any).document_type_id) {
-            documentType = await tx.documentType.findUnique({
-              where: { id: (document as any).document_type_id },
-            });
-          }
-
           if (folder) {
-            // 同じフォルダ・同じ文書種別の承認済み文書数をカウント
-            const whereCondition: any = {
-              folder_id: document.folder_id,
-              status: "approved",
-              management_number: { not: null },
-            };
-            
-            if (documentType) {
-              whereCondition.document_type_id = documentType.id;
-            }
-            
-            const folderDocCount = await tx.document.count({ where: whereCondition });
+            // 同じフォルダの承認済み文書数をカウント
+            const folderDocCount = await tx.document.count({
+              where: {
+                folder_id: document.folder_id,
+                status: "approved",
+                management_number: { not: null },
+              },
+            });
 
             // 新しい管理番号を生成
-            // 形式: {folder_code}-{document_type_code}-{4桁連番}
-            // 例: QA-RP-0001
+            // 形式: {folder_code}-{4桁連番}
+            // 例: WI-0001, MANUAL-0001
             const seq = (folderDocCount + 1).toString().padStart(4, "0");
-            if (documentType) {
-              newManagementNumber = `${folder.code}-${documentType.code}-${seq}`;
-            } else {
-              // 文書種別が未設定の場合は従来形式
-              newManagementNumber = `${folder.code}-${seq.padStart(3, "0")}`;
-            }
+            newManagementNumber = `${folder.code}-${seq}`;
           }
         } else {
           // フォルダなし: A- + 連番

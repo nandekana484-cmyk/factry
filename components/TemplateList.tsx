@@ -43,15 +43,6 @@ export default function TemplateList({ onLoadTemplate, onDeleteTemplate, refresh
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="h-full p-2">
-        <div className="font-bold text-sm mb-2">テンプレート一覧</div>
-        <div className="text-gray-400 text-sm p-2">読み込み中...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-full p-2">
       <div className="font-bold text-sm mb-2">テンプレート一覧</div>

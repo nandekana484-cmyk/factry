@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireApprover } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 
-// 差し戻し（pending → draft、承認者が実行）
+// 差し戻し（checking/pending → draft）
 export async function POST(req: Request) {
   try {
-    const user = await requireApprover();
+    const user = await requireAuth();
     const { documentId, comment } = await req.json();
 
     if (!documentId) {
