@@ -9,6 +9,7 @@ async function main() {
   // ユーザーを作成
   const writerPassword = await bcrypt.hash('password', 10);
   const approverPassword = await bcrypt.hash('password', 10);
+  const adminPassword = await bcrypt.hash('password', 10);
 
   const writer = await prisma.user.upsert({
     where: { email: 'writer@example.com' },
@@ -32,7 +33,18 @@ async function main() {
     },
   });
 
-  console.log('Users created:', { writer, approver });
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@example.com' },
+    update: {},
+    create: {
+      name: 'Admin User',
+      email: 'admin@example.com',
+      password: adminPassword,
+      role: 'admin',
+    },
+  });
+
+  console.log('Users created:', { writer, approver, admin });
 
   // フォルダを作成
   const wiFolder = await prisma.folder.create({

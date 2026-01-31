@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import EnhancedFolderTree from "@/components/EnhancedFolderTree";
 import AdminFolderTree from "./AdminFolderTree";
 
 interface User {
@@ -19,9 +18,9 @@ export default function AdminUsersPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/users")
+    fetch("/api/admin/users")
       .then((res) => res.json())
-      .then((data) => setUsers(data.users || []));
+      .then(setUsers);
     fetch("/api/folders")
       .then((res) => res.json())
       .then((data) => setFolders(data.folders || []));

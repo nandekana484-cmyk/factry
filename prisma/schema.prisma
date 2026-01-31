@@ -63,6 +63,7 @@ model Document {
   document_type_id  Int?
   sequence          Int
   revision          Int               @default(0)
+  management_number String?           // 管理番号を追加
   created_at        DateTime          @default(now())
   updated_at        DateTime          @updatedAt
   approvalHistories ApprovalHistory[]

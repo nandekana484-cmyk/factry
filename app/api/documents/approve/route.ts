@@ -19,12 +19,22 @@ export async function POST(req: Request) {
       // 文書の状態を確認
       const document = await tx.document.findUnique({
         where: { id: documentId },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          creator_id: true,
+          folder_id: true,
+          management_number: true,
           approvalRequest: true,
           documentType: true,
           revisionHistories: {
             where: { approved_at: { not: null } },
             orderBy: { approved_at: "desc" },
+            select: {
+              revision_symbol: true,
+              approved_at: true,
+            },
           },
         },
       });
@@ -105,7 +115,7 @@ export async function POST(req: Request) {
           // フォルダなし: A- + 連番
           const docsWithoutFolder = await tx.document.count({
             where: {
-              folder_id: null,
+              folder_id: undefined,
               status: "approved",
               management_number: { not: null },
             },

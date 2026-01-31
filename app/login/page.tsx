@@ -83,6 +83,11 @@ export default function LoginPage() {
               ログイン
             </Button>
           </form>
+          <div className="mt-6 text-center">
+            <a href="/register" className="text-blue-600 underline">
+              新規登録はこちら
+            </a>
+          </div>
         </CardContent>
       </Card>
     </div>

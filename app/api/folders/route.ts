@@ -1,3 +1,4 @@
+// ...既存の下側のimportと関数のみ残す...
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
