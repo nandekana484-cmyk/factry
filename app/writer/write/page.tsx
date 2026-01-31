@@ -107,14 +107,16 @@ export default function WriterPage() {
           if (response.ok) {
             const data = await response.json();
             const doc = data.document;
-            
             // 文書データを editor に読み込む
             editor.setAllBlocks(doc.blocks || []);
             editor.setCurrentDocumentId(doc.id);
-            
             console.log("文書を読み込みました:", doc.title);
           } else {
-            console.error("文書の読み込みに失敗しました");
+            const errorText = await response.text();
+            console.error("文書の読み込みに失敗しました", {
+              status: response.status,
+              body: errorText
+            });
             alert("文書の読み込みに失敗しました");
           }
         } catch (error) {

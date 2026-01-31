@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, canAssignWorkflowRole } from "@/lib/auth";
+import { UserRole } from "@/types/document";
 
 // 承認申請（draft → pending）
 export async function POST(req: Request) {
@@ -33,8 +34,18 @@ export async function POST(req: Request) {
       }
 
       // 作成者のみ実行可能
-      if (document.creator_id !== user.id) {
+      if (document.creator_id !== user.id || !canAssignWorkflowRole(user.role, "creator")) {
         throw new Error("Only creator can submit this document");
+      }
+
+      // checker/approverのroleチェック
+      const checkerUser = await tx.user.findUnique({ where: { id: checkerId } });
+      if (!checkerUser || !canAssignWorkflowRole(checkerUser.role, "checker")) {
+        throw new Error("Invalid checker role");
+      }
+      const approverUser = await tx.user.findUnique({ where: { id: approverId } });
+      if (!approverUser || !canAssignWorkflowRole(approverUser.role, "approver")) {
+        throw new Error("Invalid approver role");
       }
 
       if (document.status !== "draft") {

@@ -1,28 +1,39 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 // GET: ユーザーのアクセス可能なフォルダID一覧
 export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const userId = parseInt(params.id);
+  const { id } = await params;
+  const userId = parseInt(id);
   const access = await prisma.user_folder_access.findMany({
-    where: { user_id: userId },
-    select: { folder_id: true },
+    where: { userId },
+    select: { folderId: true, canRead: true, canWrite: true },
   });
-  return NextResponse.json({ folderIds: access.map((a) => a.folder_id) });
+  return NextResponse.json({
+    folderAccess: access.map((a) => ({
+      folderId: a.folderId,
+      canRead: a.canRead,
+      canWrite: a.canWrite,
+    })),
+  });
 }
 
 // PUT: アクセス権を保存
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const userId = parseInt(params.id);
-  const { folderIds } = await req.json();
+  const { id } = await params;
+  const userId = parseInt(id);
+  const { folderAccess } = await req.json();
   // 既存削除
-  await prisma.user_folder_access.deleteMany({ where: { user_id: userId } });
+  await prisma.user_folder_access.deleteMany({ where: { userId } });
   // 新規登録
-  if (Array.isArray(folderIds) && folderIds.length > 0) {
+  if (Array.isArray(folderAccess) && folderAccess.length > 0) {
     await prisma.user_folder_access.createMany({
-      data: folderIds.map((folder_id: number) => ({ user_id: userId, folder_id })),
+      data: folderAccess.map((a: { folderId: number; canRead?: boolean; canWrite?: boolean }) => ({
+        userId,
+        folderId: a.folderId,
+        canRead: a.canRead ?? true,
+        canWrite: a.canWrite ?? false,
+      })),
     });
   }
   return NextResponse.json({ success: true });

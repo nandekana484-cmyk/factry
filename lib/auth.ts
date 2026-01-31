@@ -1,3 +1,5 @@
+import { UserRole } from "@/types/document";
+import { canAssignWorkflowRole } from "@/lib/role";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
@@ -17,8 +19,15 @@ export async function getCurrentUser() {
     where: { id: userId },
     select: { id: true, name: true, email: true, role: true },
   });
-
-  return user;
+  if (!user) return null;
+  // roleをUserRole型にキャスト（小文字で統一）
+  let normalizedRole = (user.role as string).toLowerCase();
+  // 万一不正値が入っていた場合はcreatorにフォールバック
+  if (!Object.values(UserRole).includes(normalizedRole as UserRole)) {
+    normalizedRole = UserRole.CREATOR;
+  }
+  // UserRole型で返す
+  return { ...user, role: normalizedRole as UserRole };
 }
 
 // 認証が必要なエンドポイント用
@@ -31,9 +40,10 @@ export async function requireAuth() {
 }
 
 // 承認者権限チェック
+// 承認者権限チェック
 export async function requireApprover() {
   const user = await requireAuth();
-  if (user.role !== "approver" && user.role !== "admin") {
+  if (!canAssignWorkflowRole(user.role, "approver")) {
     throw new Error("Approver role required");
   }
   return user;
@@ -42,7 +52,8 @@ export async function requireApprover() {
 // 管理者権限チェック
 export async function requireAdmin() {
   const user = await requireAuth();
-  if (user.role !== "admin") {
+  // user.roleをUserRole型としてcanAssignWorkflowRoleに渡す
+  if (!canAssignWorkflowRole(user.role as import("@/types/document").UserRole, "admin")) {
     throw new Error("Admin role required");
   }
   return user;

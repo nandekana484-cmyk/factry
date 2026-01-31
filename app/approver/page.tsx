@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { UserRole } from "@/types/document";
+import { canAssignWorkflowRole } from "@/lib/role";
 
 interface Document {
   id: number;
@@ -50,7 +52,7 @@ interface User {
   id: number;
   name?: string;
   email: string;
-  role: "admin" | "approver" | "user";
+  role: UserRole;
 }
 
 interface Block {
@@ -159,7 +161,7 @@ export default function ApproverDashboardPage() {
       const data = await res.json();
       if (data.ok) {
         setCurrentUser(data.user);
-        if (data.user.role !== "approver" && data.user.role !== "admin") {
+        if (!canAssignWorkflowRole(data.user.role, "approver")) {
           setError("この機能にアクセスする権限がありません");
         }
       } else {
@@ -422,7 +424,7 @@ export default function ApproverDashboardPage() {
   // 権限がない場合
   if (
     !currentUser ||
-    (currentUser.role !== "approver" && currentUser.role !== "admin")
+    !canAssignWorkflowRole(currentUser.role, "approver")
   ) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

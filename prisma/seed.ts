@@ -7,18 +7,30 @@ async function main() {
   console.log('Starting seed...');
 
   // ユーザーを作成
-  const writerPassword = await bcrypt.hash('password', 10);
+  const creatorPassword = await bcrypt.hash('password', 10);
+  const checkerPassword = await bcrypt.hash('password', 10);
   const approverPassword = await bcrypt.hash('password', 10);
   const adminPassword = await bcrypt.hash('password', 10);
 
-  const writer = await prisma.user.upsert({
+  const creator = await prisma.user.upsert({
     where: { email: 'writer@example.com' },
     update: {},
     create: {
       name: '作成者',
       email: 'writer@example.com',
-      password: writerPassword,
-      role: 'user',
+      password: creatorPassword,
+      role: 'creator',
+    },
+  });
+
+  const checker = await prisma.user.upsert({
+    where: { email: 'checker@example.com' },
+    update: {},
+    create: {
+      name: '確認者',
+      email: 'checker@example.com',
+      password: checkerPassword,
+      role: 'checker',
     },
   });
 

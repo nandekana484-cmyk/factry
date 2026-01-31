@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { canAssignWorkflowRole } from "@/lib/role";
+import { UserRole } from "@/types/document";
 
 // 文書種別取得
 export async function GET(
@@ -47,7 +49,7 @@ export async function PUT(
     const user = await requireAuth();
     
     // 管理者のみ実行可能
-    if (user.role !== "admin") {
+    if (!canAssignWorkflowRole(user.role, "admin")) {
       return NextResponse.json(
         { error: "Only admin can update document types" },
         { status: 403 }
@@ -99,7 +101,7 @@ export async function DELETE(
     const user = await requireAuth();
     
     // 管理者のみ実行可能
-    if (user.role !== "admin") {
+    if (!canAssignWorkflowRole(user.role, "admin")) {
       return NextResponse.json(
         { error: "Only admin can delete document types" },
         { status: 403 }

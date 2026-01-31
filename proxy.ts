@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 export function proxy(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
-  const role = req.cookies.get("role")?.value;
+  const role = req.cookies.get("role")?.value?.toLowerCase();
   const path = req.nextUrl.pathname;
 
   // 公開ページ（ログイン前でもアクセス可能）

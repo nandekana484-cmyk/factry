@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, canAssignWorkflowRole } from "@/lib/auth";
+import { UserRole } from "@/types/document";
 
 // 確認処理（checking → pending）
 export async function POST(req: Request) {
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
       }
 
       // 確認者のみ実行可能
-      if (document.approvalRequest.checker_id !== user.id) {
+      if (document.approvalRequest.checker_id !== user.id || !canAssignWorkflowRole(user.role, "checker")) {
         throw new Error("Only the assigned checker can check this document");
       }
 

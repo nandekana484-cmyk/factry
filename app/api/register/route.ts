@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { setAuthCookie } from "@/lib/auth";
 
 export async function POST(req: Request) {
   const { name, email, password, passwordConfirm } = await req.json();
@@ -32,8 +31,31 @@ export async function POST(req: Request) {
     },
   });
 
-  // 認証Cookieセット
+  // 認証Cookieセット（loginと同様にroleは小文字で保存）
   const res = NextResponse.json({ ok: true });
-  await setAuthCookie(res, user);
+  res.cookies.set({
+    name: "token",
+    value: "devtoken",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+  res.cookies.set({
+    name: "role",
+    value: user.role.toLowerCase(),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+  res.cookies.set({
+    name: "userId",
+    value: user.id.toString(),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
   return res;
 }

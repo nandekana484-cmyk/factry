@@ -1,3 +1,6 @@
+// ================================
+// Prisma Client / DB 設定
+// ================================
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,148 +10,282 @@ datasource db {
   url      = "file:../data/database.sqlite"
 }
 
+// ================================
+// ユーザーとフォルダのアクセス権
+// ================================
+model user_folder_access {
+  id        Int      @id @default(autoincrement())
+
+  // アクセス対象ユーザー
+  userId    Int
+
+  // アクセス対象フォルダ
+  folderId  Int
+
+  // 権限（閲覧・編集）
+  canRead   Boolean  @default(true)
+  canWrite  Boolean  @default(false)
+
+  // リレーション
+  user      User     @relation(fields: [userId], references: [id])
+  folder    Folder   @relation(fields: [folderId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 同一ユーザーが同一フォルダに複数レコードを持たない
+  @@unique([userId, folderId])
+
+  @@map("user_folder_access")
+}
+
+
+// ================================
+// ユーザー
+// ================================
 model User {
-  id                Int               @id @default(autoincrement())
-  name              String
-  email             String            @unique(map: "sqlite_autoindex_users_1")
-  password          String
-  role              String            @default("user")
-  created_at        DateTime          @default(now())
+  id       Int    @id @default(autoincrement())
+  name     String
+  email    String @unique(map: "sqlite_autoindex_users_1")
+  password String
+
+  // システム上の役割（creator / checker / approver / admin）
+  role     String   @default("user")
+  // enum: user / creator / checker / approver / admin
+  created_at DateTime @default(now())
+
+  // アカウント無効化
+  disabled Boolean @default(false)
+
+  // 承認ワークフロー関連
   approvalHistories ApprovalHistory[]
   approvalApprovers ApprovalRequest[] @relation("ApprovalApprover")
   approvalCheckers  ApprovalRequest[] @relation("ApprovalChecker")
   approvalRequests  ApprovalRequest[] @relation("ApprovalRequester")
+
+  // 文書作成・改訂関連
   createdDocuments  Document[]        @relation("DocumentCreator")
   createdRevisions  RevisionHistory[] @relation("RevisionCreatedBy")
   checkedRevisions  RevisionHistory[] @relation("RevisionCheckedBy")
   approvedRevisions RevisionHistory[] @relation("RevisionApprovedBy")
+
+  // テンプレート作成者
   createdTemplates  Template[]        @relation("TemplateCreator")
+
+  // フォルダアクセス権
+  userFolderAccesses user_folder_access[]
 
   @@map("users")
 }
 
+// ================================
+// フォルダ（階層構造）
+// ================================
 model Folder {
-  id         Int        @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   name       String
-  code       String     @unique
+  code       String   @unique
+
+  // 親フォルダ（null ならルート）
   parent_id  Int?
-  created_at DateTime   @default(now())
+
+  created_at DateTime @default(now())
+
+  // フォルダ内の文書
   documents  Document[]
-  parent     Folder?    @relation("FolderTree", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  children   Folder[]   @relation("FolderTree")
+
+  // フォルダ階層構造
+  parent     Folder?  @relation("FolderTree", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children   Folder[] @relation("FolderTree")
+
+  // アクセス権
+  userFolderAccesses user_folder_access[]
 
   @@map("folders")
 }
 
+// ================================
+// 文書種別
+// ================================
 model DocumentType {
-  id          Int        @id @default(autoincrement())
-  code        String     @unique
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
   name        String
   description String?
-  order       Int        @default(0)
-  created_at  DateTime   @default(now())
-  updated_at  DateTime   @updatedAt
+  order       Int      @default(0)
+
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
   documents   Document[]
 
   @@map("document_types")
 }
 
+// ================================
+// 文書
+// ================================
 model Document {
-  id                Int               @id @default(autoincrement())
+  id                Int      @id @default(autoincrement())
   title             String
-  status            String            @default("draft")
+
+  // draft / checking / approved など
+  status            String    @default("draft")
+
   creator_id        Int
   template_id       Int?
   folder_id         Int
   document_type_id  Int?
+
+  // フォルダ内での連番
   sequence          Int
-  revision          Int               @default(0)
-  management_number String?           // 管理番号を追加
-  created_at        DateTime          @default(now())
-  updated_at        DateTime          @updatedAt
+
+  // 改訂番号
+  revision          Int       @default(0)
+
+  // 管理番号（例：F-001-001）
+  management_number String?
+
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // 承認履歴
   approvalHistories ApprovalHistory[]
+
+  // 現在の承認要求（1文書につき1つ）
   approvalRequest   ApprovalRequest?
+
+  // 文書ブロック（本文構造）
   blocks            DocumentBlock[]
-  documentType      DocumentType?     @relation(fields: [document_type_id], references: [id])
-  folder            Folder            @relation(fields: [folder_id], references: [id])
-  creator           User              @relation("DocumentCreator", fields: [creator_id], references: [id])
+
+  // リレーション
+  documentType      DocumentType? @relation(fields: [document_type_id], references: [id])
+  folder            Folder        @relation(fields: [folder_id], references: [id])
+  creator           User          @relation("DocumentCreator", fields: [creator_id], references: [id])
+
+  // 改訂履歴
   revisionHistories RevisionHistory[]
 
+  // フォルダ内で sequence はユニーク
   @@unique([folder_id, sequence])
+
   @@map("documents")
 }
 
+// ================================
+// 文書ブロック（テキスト・画像・図形など）
+// ================================
 model DocumentBlock {
   id          Int      @id @default(autoincrement())
   document_id Int
+
+  // block type: text / image / table など
   type        String
+
   content     String
+
+  // 配置情報
   position_x  Float
   position_y  Float
   width       Float
   height      Float
+
   sort_order  Int      @default(0)
+
   document    Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
 
   @@map("document_blocks")
 }
 
+// ================================
+// 承認要求（作成者 → 確認者 → 承認者）
+// ================================
 model ApprovalRequest {
-  id           Int       @id @default(autoincrement())
-  document_id  Int       @unique
-  requester_id Int
-  checker_id   Int
-  approver_id  Int
-  requested_at DateTime  @default(now())
+  id           Int      @id @default(autoincrement())
+
+  // 文書1つにつき1つの承認要求
+  document_id  Int      @unique
+
+  requester_id Int      // 作成者
+  checker_id   Int      // 確認者
+  approver_id  Int      // 承認者
+
+  requested_at DateTime @default(now())
   comment      String?
   checked_at   DateTime?
-  approver     User      @relation("ApprovalApprover", fields: [approver_id], references: [id])
-  checker      User      @relation("ApprovalChecker", fields: [checker_id], references: [id])
-  requester    User      @relation("ApprovalRequester", fields: [requester_id], references: [id])
-  document     Document  @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  // リレーション
+  approver     User     @relation("ApprovalApprover", fields: [approver_id], references: [id])
+  checker      User     @relation("ApprovalChecker", fields: [checker_id], references: [id])
+  requester    User     @relation("ApprovalRequester", fields: [requester_id], references: [id])
+  document     Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
 
   @@map("approval_requests")
 }
 
+// ================================
+// 承認履歴（誰が何をしたか）
+// ================================
 model ApprovalHistory {
   id          Int      @id @default(autoincrement())
   document_id Int
   user_id     Int
+
+  // action: requested / checked / approved / rejected など
   action      String
+
   comment     String?
   created_at  DateTime @default(now())
+
   user        User     @relation(fields: [user_id], references: [id])
   document    Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
 
   @@map("approval_history")
 }
 
+// ================================
+// 改訂履歴（Revision）
+// ================================
 model RevisionHistory {
-  id                Int       @id @default(autoincrement())
+  id                Int      @id @default(autoincrement())
   document_id       Int
+
+  // 管理番号（改訂ごとに変わる）
   management_number String
+
+  // 改訂記号（A → B → C）
   revision_symbol   String
+
   title             String
+
   approved_by_id    Int?
   checked_by_id     Int
   created_by_id     Int
+
   approved_at       DateTime?
-  created_at        DateTime  @default(now())
-  createdBy         User      @relation("RevisionCreatedBy", fields: [created_by_id], references: [id])
-  checkedBy         User      @relation("RevisionCheckedBy", fields: [checked_by_id], references: [id])
-  approvedBy        User?     @relation("RevisionApprovedBy", fields: [approved_by_id], references: [id])
-  document          Document  @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  created_at        DateTime @default(now())
+
+  // リレーション
+  createdBy         User     @relation("RevisionCreatedBy", fields: [created_by_id], references: [id])
+  checkedBy         User     @relation("RevisionCheckedBy", fields: [checked_by_id], references: [id])
+  approvedBy        User?    @relation("RevisionApprovedBy", fields: [approved_by_id], references: [id])
+  document          Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
 
   @@map("revision_history")
 }
 
+// ================================
+// テンプレート
+// ================================
 model Template {
   id         Int      @id @default(autoincrement())
   name       String
   content    String
+
   created_by Int
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+
   creator    User     @relation("TemplateCreator", fields: [created_by], references: [id])
 
   @@map("templates")

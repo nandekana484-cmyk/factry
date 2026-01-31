@@ -1,15 +1,19 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { LogoutButton } from "./LogoutButton";
+import { UserRole } from "@/types/document";
+import { canAssignWorkflowRole, RoleMatrix } from "@/lib/role";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
-  const role = cookieStore.get("role")?.value;
+  // cookieのrole値を小文字で取得しUserRole型に
+  const roleRaw = cookieStore.get("role")?.value;
+  const role = (roleRaw ? roleRaw.toLowerCase() : undefined) as UserRole | undefined;
 
   // ロール別メニュー
   const menuItems = [
     {
-      role: ["admin", "approver", "user"],
+      role: [UserRole.CREATOR, UserRole.CHECKER, UserRole.APPROVER, UserRole.ADMIN],
       title: "文書管理",
       href: "/dashboard/documents",
       description: "フォルダー管理と文書一覧",
@@ -17,7 +21,7 @@ export default async function DashboardPage() {
       color: "blue",
     },
     {
-      role: ["admin", "approver", "user"],
+      role: [UserRole.CREATOR, UserRole.CHECKER, UserRole.APPROVER, UserRole.ADMIN],
       title: "承認フロー",
       href: "/documents",
       description: "文書の承認・差し戻し",
@@ -25,7 +29,7 @@ export default async function DashboardPage() {
       color: "indigo",
     },
     {
-      role: ["admin", "approver", "user"],
+      role: [UserRole.CREATOR, UserRole.CHECKER, UserRole.APPROVER, UserRole.ADMIN],
       title: "AI検索",
       href: "/dashboard/search",
       description: "文書を検索",
@@ -33,7 +37,7 @@ export default async function DashboardPage() {
       color: "green",
     },
     {
-      role: ["admin", "approver"],
+      role: [UserRole.APPROVER, UserRole.ADMIN],
       title: "管理者ページ",
       href: "/admin",
       description: "管理者向けメニュー",
@@ -41,7 +45,7 @@ export default async function DashboardPage() {
       color: "purple",
     },
     {
-      role: ["admin", "approver"],
+      role: [UserRole.APPROVER, UserRole.ADMIN],
       title: "承認者ページ",
       href: "/approver",
       description: "承認作業を行うページ",
@@ -49,7 +53,7 @@ export default async function DashboardPage() {
       color: "yellow",
     },
     {
-      role: ["admin", "approver", "user"],
+      role: [UserRole.CREATOR, UserRole.CHECKER, UserRole.APPROVER, UserRole.ADMIN],
       title: "ライターページ",
       href: "/writer/menu",
       description: "文書作成・編集メニュー",
@@ -59,8 +63,14 @@ export default async function DashboardPage() {
   ];
 
   const visibleItems = menuItems.filter((item) =>
-    item.role.includes(role || "")
+    item.role.some((r) => role && canAssignWorkflowRole(role, getWorkflowKey(r) as keyof typeof RoleMatrix))
   );
+
+  // UserRole→RoleMatrixキー変換
+  function getWorkflowKey(role: UserRole): keyof typeof RoleMatrix {
+    // すでに小文字enumなのでそのまま返す
+    return role;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">

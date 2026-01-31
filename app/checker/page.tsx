@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { UserRole } from "@/types/document";
+import { canAssignWorkflowRole } from "@/lib/role";
 
 interface Document {
   id: number;
@@ -42,6 +44,7 @@ interface Document {
     approvedBy: { id: number; name: string } | null;
     approvedAt: string | null;
   } | null;
+
   blockCount: number;
   createdAt: string;
   updatedAt: string;
@@ -51,7 +54,7 @@ interface User {
   id: number;
   name?: string;
   email: string;
-  role: string;
+  role: UserRole;
 }
 
 export default function CheckerPage() {

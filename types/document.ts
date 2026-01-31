@@ -1,3 +1,10 @@
+// 権限ロール（RBAC）
+export enum UserRole {
+  CREATOR = "creator",
+  CHECKER = "checker",
+  APPROVER = "approver",
+  ADMIN = "admin",
+}
 // 共通型定義
 
 // ユーザー
@@ -5,7 +12,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  role: "admin" | "approver" | "user";
+  role: UserRole;
 }
 
 // フォルダ
@@ -74,7 +81,7 @@ export interface DocumentListItem {
     id: number;
     name?: string;
     email: string;
-    role: string;
+    role: UserRole;
   };
   approvalRequest?: ApprovalRequest;
   latestRevision?: {

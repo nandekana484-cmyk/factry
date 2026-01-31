@@ -16,7 +16,7 @@ export async function GET() {
     // 簡易実装: roleからユーザーを特定
     // 実際にはtokenから正確にユーザーを特定する必要があります
     const user = await prisma.user.findFirst({
-      where: { role: role?.value || "user" },
+      where: { role: (role?.value || "creator").toLowerCase() },
       select: { id: true, email: true, role: true },
     });
 

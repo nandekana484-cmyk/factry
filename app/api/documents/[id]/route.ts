@@ -15,6 +15,7 @@ export async function GET(
     const document = await prisma.document.findUnique({
       where: { id: documentId },
       include: {
+        folder: true,
         creator: {
           select: { id: true, name: true, email: true, role: true },
         },

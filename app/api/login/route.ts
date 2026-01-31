@@ -11,8 +11,12 @@ export async function POST(req: Request) {
       where: { email },
     });
 
+
     if (!user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+    if (user.disabled) {
+      return NextResponse.json({ error: "Account disabled" }, { status: 401 });
     }
 
     // パスワード照合
@@ -35,7 +39,7 @@ export async function POST(req: Request) {
 
     res.cookies.set({
       name: "role",
-      value: user.role,
+      value: user.role.toLowerCase(),
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
