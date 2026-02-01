@@ -1,15 +1,28 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState({
-    name: "",
+    last_name: "",
+    first_name: "",
+    middle_name: "",
     email: "",
     password: "",
     passwordConfirm: "",
+    department_id: null,
+    section_id: null,
+    position_id: null,
   });
+  const [departments, setDepartments] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [positions, setPositions] = useState([]);
+    useEffect(() => {
+      fetch("/api/admin/departments").then(res => res.json()).then(data => setDepartments(data.departments));
+      fetch("/api/admin/sections").then(res => res.json()).then(data => setSections(data.sections));
+      fetch("/api/admin/positions").then(res => res.json()).then(data => setPositions(data.positions));
+    }, []);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +34,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
 
-    if (!form.name || !form.email || !form.password || !form.passwordConfirm) {
+    if (!form.last_name || !form.first_name || !form.email || !form.password || !form.passwordConfirm) {
       setError("全ての項目を入力してください");
       return;
     }
@@ -30,10 +43,14 @@ export default function RegisterPage() {
       return;
     }
     setLoading(true);
+    const payload = { ...form };
+    // nameはlast_name+first_name+middle_nameで自動生成
+    payload.name = [form.last_name, form.first_name, form.middle_name].filter(Boolean).join(" ");
+    if (!payload.middle_name) payload.middle_name = null;
     const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     setLoading(false);
@@ -48,11 +65,29 @@ export default function RegisterPage() {
     <div className="max-w-md mx-auto mt-12 p-6 border rounded">
       <h2 className="text-2xl font-bold mb-4">新規登録</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex gap-2">
+          <input
+            name="last_name"
+            type="text"
+            placeholder="姓 (必須)"
+            value={form.last_name}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+          />
+          <input
+            name="first_name"
+            type="text"
+            placeholder="名 (必須)"
+            value={form.first_name}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+          />
+        </div>
         <input
-          name="name"
+          name="middle_name"
           type="text"
-          placeholder="名前"
-          value={form.name}
+          placeholder="ミドルネーム (任意)"
+          value={form.middle_name}
           onChange={handleChange}
           className="w-full p-2 border rounded"
         />
@@ -80,6 +115,37 @@ export default function RegisterPage() {
           onChange={handleChange}
           className="w-full p-2 border rounded"
         />
+        <select
+          value={form.department_id ?? ""}
+          onChange={e => setForm({ ...form, department_id: e.target.value ? Number(e.target.value) : null, section_id: null })}
+          className="w-full p-2 border rounded"
+        >
+          <option value="">部署を選択</option>
+          {departments.map((dep: any) => (
+            <option key={dep.id} value={dep.id}>{dep.name}</option>
+          ))}
+        </select>
+        <select
+          value={form.section_id ?? ""}
+          onChange={e => setForm({ ...form, section_id: e.target.value ? Number(e.target.value) : null })}
+          className="w-full p-2 border rounded"
+          disabled={!form.department_id}
+        >
+          <option value="">部門を選択</option>
+          {sections.filter((sec: any) => sec.department_id === form.department_id).map((sec: any) => (
+            <option key={sec.id} value={sec.id}>{sec.name}</option>
+          ))}
+        </select>
+        <select
+          value={form.position_id ?? ""}
+          onChange={e => setForm({ ...form, position_id: e.target.value ? Number(e.target.value) : null })}
+          className="w-full p-2 border rounded"
+        >
+          <option value="">職責を選択</option>
+          {positions.map((pos: any) => (
+            <option key={pos.id} value={pos.id}>{pos.name}</option>
+          ))}
+        </select>
         {error && <div className="text-red-500">{error}</div>}
         <button
           type="submit"

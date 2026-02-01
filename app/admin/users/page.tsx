@@ -1,8 +1,18 @@
 "use client";
+// ...existing code...
+function formatUserName(user: any) {
+  return [user.last_name, user.first_name, user.middle_name].filter(Boolean).join(" ");
+}
 
+// ...existing code...
 import { useEffect, useState, useMemo } from "react";
 import { UserRow } from "./UserRow";
 import { UserDetail } from "./UserDetail";
+import DepartmentMaster from "@/components/DepartmentMaster";
+import SectionMaster from "@/components/SectionMaster";
+import PositionMaster from "@/components/PositionMaster";
+import DepartmentSectionTree from "@/components/DepartmentSectionTree";
+import { useRouter } from "next/navigation";
 
 // 定数群
 const ROLES = ["admin", "approver", "checker", "creator", "user"];
@@ -28,6 +38,14 @@ type User = {
   role: string;
   lastLogin?: string | null;
   folderId?: number;
+  department?: { name: string };
+  section?: { name: string };
+  department_id?: number | null;
+  section_id?: number | null;
+  position_id?: number | null;
+  last_name: string;
+  first_name: string;
+  middle_name?: string | null;
 };
 
 // ユーザー一覧テーブル
@@ -54,12 +72,14 @@ function UserTable({
   };
 
   return (
-    <table className="min-w-full border text-sm">
+    <table className="w-full min-w-[900px] border text-sm">
       <thead>
         <tr className="bg-gray-100">
           <th className="p-2 cursor-pointer" onClick={() => onSort("name")}>名前{sortKey === "name" ? (sortOrder === "asc" ? "▲" : "▼") : ""}</th>
           <th className="p-2 cursor-pointer" onClick={() => onSort("email")}>メール{sortKey === "email" ? (sortOrder === "asc" ? "▲" : "▼") : ""}</th>
           <th className="p-2 cursor-pointer" onClick={() => onSort("role")}>権限{sortKey === "role" ? (sortOrder === "asc" ? "▲" : "▼") : ""}</th>
+          <th className="p-2">部署</th>
+          <th className="p-2">部門</th>
           <th className="p-2 cursor-pointer" onClick={() => onSort("lastLogin")}>最終ログイン{sortKey === "lastLogin" ? (sortOrder === "asc" ? "▲" : "▼") : ""}</th>
           <th className="p-2 cursor-pointer" onClick={() => onSort("daysAgo")}>経過日数{sortKey === "daysAgo" ? (sortOrder === "asc" ? "▲" : "▼") : ""}</th>
         </tr>
@@ -69,11 +89,16 @@ function UserTable({
           <tr
             key={user.id}
             className="hover:bg-blue-50 cursor-pointer"
-            onClick={() => onSelect(user)}
+            onClick={() => {
+              console.log("[UserTable] onSelect user", user);
+              onSelect({ ...user });
+            }}
           >
-            <td className="p-2">{user.name}</td>
+            <td className="p-2">{formatUserName(user)}</td>
             <td className="p-2">{user.email}</td>
             <td className="p-2">{ROLE_LABELS[user.role] || user.role}</td>
+            <td className="p-2">{user.department?.name ?? "-"}</td>
+            <td className="p-2">{user.section?.name ?? "-"}</td>
             <td className="p-2">
               {user.lastLogin
                 ? new Date(user.lastLogin).toLocaleString("ja-JP", {
@@ -95,22 +120,45 @@ function UserTable({
 
 // 管理画面本体
 function AdminUsersPage() {
+  const router = useRouter();
   // --- state群 ---
   const [users, setUsers] = useState<User[]>([]);
   const [expandedRoles, setExpandedRoles] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  useEffect(() => {
+    if (selectedUser) {
+      console.log("[AdminUsersPage] selectedUser", selectedUser);
+    }
+  }, [selectedUser]);
   const [message, setMessage] = useState<string>("");
   const [sortKey, setSortKey] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [search, setSearch] = useState<string>("");
   const [searchMode, setSearchMode] = useState<boolean>(false);
   const [searchResult, setSearchResult] = useState<User[]>([]);
+  const [masterTab, setMasterTab] = useState("none");
 
   // --- ユーザー再取得 ---
   const reloadUsers = async () => {
-    const res = await fetch("/api/admin/users");
-    const data = await res.json();
-    setUsers(data);
+    try {
+      const res = await fetch("/api/admin/users");
+      if (!res.ok) {
+        console.error("API error", res.status, res.statusText);
+        setUsers([]);
+        return;
+      }
+      const text = await res.text();
+      if (!text) {
+        setUsers([]);
+        return;
+      }
+      const data = JSON.parse(text);
+      console.log("[fetchUsers] API response", data);
+      setUsers(data);
+    } catch (e) {
+      console.error("reloadUsers error", e);
+      setUsers([]);
+    }
   };
 
   useEffect(() => {
@@ -185,9 +233,9 @@ function AdminUsersPage() {
           {message}
         </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-8 min-h-[400px]">
-        {/* 左カラム: ロールツリー＋ユーザーリスト */}
-        <div className="md:col-span-2 border-r pr-4 overflow-y-auto max-h-[600px]">
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-4 min-h-[400px]">
+        {/* 左カラム: ロールツリー＋ユーザーリスト＋項目設定 */}
+        <div className="md:col-span-2 border-r pr-2 overflow-y-auto max-h-[600px] flex flex-col h-full">
           {/* 検索ボックス */}
           <div className="mb-4 flex gap-2">
             <input
@@ -252,7 +300,7 @@ function AdminUsersPage() {
                                 ? "bg-blue-50 font-bold"
                                 : "hover:bg-gray-100"
                             }`}
-                            onClick={() => setSelectedUser(user)}
+                            onClick={() => setSelectedUser({ ...user })}
                           >
                             <UserRow user={user} />
                           </div>
@@ -263,34 +311,56 @@ function AdminUsersPage() {
                 </div>
               );
             })}
-        </div>
-        {/* 右カラム: 選択ユーザー詳細 or 一覧 or 検索結果 */}
-        <div className="md:col-span-3 pl-4">
-          {searchMode ? (
-            <div>
-              <div className="mb-2 text-gray-600">検索結果（{searchResult.length}件）</div>
-              <UserTable
-                users={searchResult}
-                onSelect={setSelectedUser}
-                sortKey={sortKey}
-                sortOrder={sortOrder}
-                onSort={handleSort}
-              />
+          {/* 項目設定セクション */}
+          <div className="mt-auto pt-6 border-t">
+            <div className="font-bold mb-2 text-gray-700">項目設定</div>
+            <div className="flex gap-2">
+              <button
+                className={`px-3 py-2 rounded ${masterTab==="department"?"bg-blue-600 text-white":"bg-gray-200 text-gray-700"}`}
+                onClick={() => {
+                  router.push("/admin/master/department");
+                }}
+              >部署・部門</button>
+              <button
+                className={`px-3 py-2 rounded ${masterTab==="position"?"bg-blue-600 text-white":"bg-gray-200 text-gray-700"}`}
+                onClick={() => {
+                  router.push("/admin/master/position");
+                }}
+              >職責</button>
             </div>
-          ) : selectedUser ? (
+          </div>
+        </div>
+        {/* 右カラム: 項目設定 or ユーザー詳細 or 一覧 or 検索結果 */}
+        <div className="md:col-span-5 pl-8">
+          {/* 項目設定は右カラムで表示しない。masterTabは使わない */}
+          {selectedUser ? (
             <UserDetail
               user={selectedUser}
               onDeleted={async () => {
                 await reloadUsers();
                 setSelectedUser(null);
               }}
+              onSaved={async () => {
+                await reloadUsers();
+              }}
             />
+          ) : searchMode ? (
+            <div>
+              <div className="mb-2 text-gray-600">検索結果（{searchResult.length}件）</div>
+              <UserTable
+                users={searchResult}
+                onSelect={user => setSelectedUser({ ...user })}
+                sortKey={sortKey}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
+            </div>
           ) : (
             <div>
               <div className="mb-2 text-gray-600">全ユーザー一覧（クリックで詳細表示）</div>
               <UserTable
                 users={sortedUsers}
-                onSelect={setSelectedUser}
+                onSelect={user => setSelectedUser({ ...user })}
                 sortKey={sortKey}
                 sortOrder={sortOrder}
                 onSort={handleSort}

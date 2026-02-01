@@ -1,3 +1,9 @@
+// ...existing code...
+function formatUserName(user: any) {
+  return [user.last_name, user.first_name, user.middle_name].filter(Boolean).join(" ");
+}
+
+// ...existing code...
 "use client";
 
 import { useEffect, useState } from "react";
@@ -138,7 +144,7 @@ export default function DocumentHistoryPage() {
                     </div>
 
                     <div className="text-sm text-gray-700 mb-1">
-                      <span className="font-medium">{item.user.name || item.user.email}</span>
+                      <span className="font-medium">{formatUserName(item.user) || item.user.email}</span>
                       <span className="text-gray-500 ml-2">
                         ({item.user.role})
                       </span>

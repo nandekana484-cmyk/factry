@@ -10,6 +10,17 @@ export async function GET() {
       name: true,
       email: true,
       role: true,
+      lastLogin: true,
+      // folderId: true, // Prisma Userモデルに存在しないため削除
+      department_id: true,
+      section_id: true,
+      position_id: true,
+      last_name: true,
+      first_name: true,
+      middle_name: true,
+      department: { select: { name: true } },
+      section: { select: { name: true } },
+      position: { select: { name: true } },
     },
     orderBy: { id: 'asc' },
   });

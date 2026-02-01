@@ -25,6 +25,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
+    // lastLoginを現在時刻で更新
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
+
     // Cookie に token と role を保存（セッション Cookie）
     const res = NextResponse.json({ ok: true, role: user.role });
 

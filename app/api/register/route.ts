@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
-  const { name, email, password, passwordConfirm } = await req.json();
+  const { last_name, first_name, middle_name, email, password, passwordConfirm, department_id, section_id, position_id } = await req.json();
 
-  if (!name || !email || !password || !passwordConfirm) {
+  if (!last_name || !first_name || !email || !password || !passwordConfirm) {
     return NextResponse.json({ error: "全ての項目を入力してください" }, { status: 400 });
   }
   if (password !== passwordConfirm) {
@@ -22,12 +22,19 @@ export async function POST(req: Request) {
   const hashed = await bcrypt.hash(password, 10);
 
   // ユーザー作成
+  const name = [last_name, first_name, middle_name].filter(Boolean).join(" ");
   const user = await prisma.user.create({
     data: {
+      last_name,
+      first_name,
+      middle_name: middle_name ? middle_name : null,
       name,
       email,
       password: hashed,
       role: "user",
+      department_id: department_id ?? null,
+      section_id: section_id ?? null,
+      position_id: position_id ?? null,
     },
   });
 

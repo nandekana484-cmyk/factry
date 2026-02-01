@@ -1,3 +1,9 @@
+// ...existing code...
+function formatUserName(user: any) {
+  return [user.last_name, user.first_name, user.middle_name].filter(Boolean).join(" ");
+}
+
+// ...existing code...
 "use client";
 
 import { useEffect, useState } from "react";
@@ -457,7 +463,7 @@ export default function ApproverDashboardPage() {
                 承認者ダッシュボード
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                ログイン中: {currentUser.name || currentUser.email} ({currentUser.role})
+                ログイン中: {formatUserName(currentUser) || currentUser.email} ({currentUser.role})
               </p>
             </div>
             <button
@@ -628,7 +634,7 @@ export default function ApproverDashboardPage() {
                                 {getActionLabel(latestHistory.action)}
                               </span>
                               <span className="text-gray-600">
-                                {latestHistory.user.name || latestHistory.user.email}
+                                {formatUserName(latestHistory.user) || latestHistory.user.email}
                               </span>
                               <span className="text-gray-500">
                                 {formatRelativeTime(latestHistory.createdAt)}

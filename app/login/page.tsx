@@ -36,7 +36,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <Card className="shadow-lg" style={{ width: 400, height: 350 }}>
+      <Card className="shadow-lg" style={{ width: 400, height: 400 }}>
         <CardHeader>
           <CardTitle className="text-center font-bold" style={{ fontSize: 24 }}>
             ログイン
@@ -83,9 +83,12 @@ export default function LoginPage() {
               ログイン
             </Button>
           </form>
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center flex flex-col gap-2">
             <a href="/register" className="text-blue-600 underline">
               新規登録はこちら
+            </a>
+            <a href="/forgot-password" className="text-blue-600 underline">
+              パスワードを忘れた方はこちら
             </a>
           </div>
         </CardContent>

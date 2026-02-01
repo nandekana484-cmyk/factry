@@ -1,3 +1,10 @@
+"use client";
+// ...existing code...
+function formatUserName(user: any) {
+  return [user.last_name, user.first_name, user.middle_name].filter(Boolean).join(" ");
+}
+
+// ...existing code...
 import { useState } from "react";
 
 const ROLE_OPTIONS = [
@@ -9,11 +16,11 @@ const ROLE_OPTIONS = [
 ];
 
 export function UserRow({ user }: {
-  user: { id: number, name: string, email: string, role: string }
+  user: { id: number, name: string, email: string, role: string, last_name: string, first_name: string, middle_name?: string | null }
 }) {
   return (
     <div className="flex items-center gap-4 py-2 border-b">
-      <div className="flex-1">{user.name} <span className="text-gray-400 text-xs">{user.email}</span></div>
+      <div className="flex-1">{formatUserName(user)} <span className="text-gray-400 text-xs">{user.email}</span></div>
       <span className="px-2 py-1 rounded bg-gray-100 border text-xs">{user.role}</span>
     </div>
   );

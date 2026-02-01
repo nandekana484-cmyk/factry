@@ -14,6 +14,14 @@ export default async function DashboardPage() {
   const menuItems = [
     {
       role: [UserRole.CREATOR, UserRole.CHECKER, UserRole.APPROVER, UserRole.ADMIN],
+      title: "マイページ",
+      href: "/mypage",
+      description: "自分の情報を編集",
+      icon: "👤",
+      color: "teal",
+    },
+    {
+      role: [UserRole.CREATOR, UserRole.CHECKER, UserRole.APPROVER, UserRole.ADMIN],
       title: "文書管理",
       href: "/dashboard/documents",
       description: "フォルダー管理と文書一覧",
@@ -83,7 +91,7 @@ export default async function DashboardPage() {
       <p className="text-gray-600 mb-10">あなたの権限: {role}</p>
 
       {/* メニューカード（WriterMenu と同じスタイル） */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {visibleItems.map((item) => (
           <Link key={item.href} href={item.href} className="group block">
             <div
