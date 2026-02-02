@@ -4,7 +4,18 @@ import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState({
+  type FormType = {
+    last_name: string;
+    first_name: string;
+    middle_name: string;
+    email: string;
+    password: string;
+    passwordConfirm: string;
+    department_id: number | null;
+    section_id: number | null;
+    position_id: number | null;
+  };
+  const [form, setForm] = useState<FormType>({
     last_name: "",
     first_name: "",
     middle_name: "",
@@ -43,10 +54,18 @@ export default function RegisterPage() {
       return;
     }
     setLoading(true);
-    const payload = { ...form };
-    // nameはlast_name+first_name+middle_nameで自動生成
-    payload.name = [form.last_name, form.first_name, form.middle_name].filter(Boolean).join(" ");
-    if (!payload.middle_name) payload.middle_name = null;
+    // APIに送るpayload型を明示的に定義
+    const payload = {
+      last_name: form.last_name,
+      first_name: form.first_name,
+      middle_name: form.middle_name ? form.middle_name : null,
+      email: form.email,
+      password: form.password,
+      passwordConfirm: form.passwordConfirm,
+      department_id: form.department_id,
+      section_id: form.section_id,
+      position_id: form.position_id,
+    };
     const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

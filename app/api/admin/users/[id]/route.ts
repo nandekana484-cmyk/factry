@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   const user = await requireAdmin();
   const body = await req.json();
-  const { name, email, role, disabled, department_id, section_id, position_id } = body;
+  const { name, email, role, disabled, department_id, section_id, position_id, last_name, first_name, middle_name } = body;
   const validRoles = ["user", "creator", "checker", "approver", "admin"];
   if (role && !validRoles.includes(role)) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
@@ -21,6 +21,9 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       ...(department_id !== undefined && { department_id }),
       ...(section_id !== undefined && { section_id }),
       ...(position_id !== undefined && { position_id }),
+      ...(last_name !== undefined && { last_name }),
+      ...(first_name !== undefined && { first_name }),
+      ...(middle_name !== undefined && { middle_name }),
     },
     include: {
       department: true,

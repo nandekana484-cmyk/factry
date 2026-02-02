@@ -1,11 +1,10 @@
+"use client";
 // ...existing code...
 function formatUserName(user: any) {
   return [user.last_name, user.first_name, user.middle_name].filter(Boolean).join(" ");
 }
 
 // ...existing code...
-"use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserRole } from "@/types/document";
