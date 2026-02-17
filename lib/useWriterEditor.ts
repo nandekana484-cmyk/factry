@@ -1,53 +1,53 @@
+
 "use client";
 
 import { useState, useCallback } from "react";
 import { nanoid } from "nanoid";
 
-/**
- * Page管理用の型定義
- */
+// =========================
+// 型定義セクション
+// =========================
+
+type BlockSource = "template" | "user";
+
+interface Block {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotate: number;
+  locked: boolean;
+  [key: string]: any;
+}
+
 interface Page {
   id: string;
   number: number;
-  blocks: any[];
+  blocks: Block[];
 }
 
-/**
- * useWriterEditor - 文書作成専用フック
- * 文書の作成・編集・AI連携・ページ管理・保存に必要な機能を提供
- */
-export const useWriterEditor = () => {
-  // ページ管理
-  const [pages, setPages] = useState<Page[]>([
-    { id: nanoid(), number: 1, blocks: [] },
-  ]);
+const useWriterEditor = () => {
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [readOnly] = useState(false);
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
+  const [selectedCell, setSelectedCell] = useState<any>(null);
+  const [pages, setPages] = useState<Page[]>([{ id: nanoid(), number: 1, blocks: [] }]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [blocks, setBlocks] = useState<any[]>([]);
-
-  // 選択状態
-  const [selectedBlock, setSelectedBlock] = useState<any | null>(null);
-  const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
-
-  // 用紙サイズ（テンプレートから読み込む）
   const [paper, setPaper] = useState("A4");
   const [orientation, setOrientation] = useState("portrait");
-  
-  // 現在編集中の文書ID（上書き保存用）
   const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
-  
-  // Undo/Redo用の履歴管理
-  const [history, setHistory] = useState<Page[][]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [history, setHistory] = useState<Page[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
   const [isUndoRedoing, setIsUndoRedoing] = useState(false);
 
-  // 履歴に現在の状態を保存
   const saveToHistory = useCallback(() => {
-    if (isUndoRedoing) return; // Undo/Redo中は履歴を保存しない
-
-    const currentState = JSON.parse(JSON.stringify(pages)); // ディープコピー
+    if (isUndoRedoing) return;
     setHistory((prev) => {
       const newHistory = prev.slice(0, historyIndex + 1);
-      newHistory.push(currentState);
+      newHistory.push(pages);
       // 履歴は最大50件まで
       if (newHistory.length > 50) {
         newHistory.shift();
@@ -99,6 +99,7 @@ export const useWriterEditor = () => {
 
   // ブロック追加
   const addBlock = (type: string) => {
+    // 追加ブロックは常に locked: false, editable: true, source: 'user'
     const base = {
       id: nanoid(),
       type,
@@ -108,6 +109,9 @@ export const useWriterEditor = () => {
       height: 80,
       isEditing: false,
       rotate: 0,
+      locked: false,
+      editable: true,
+      source: "user",
     };
 
     let block: any = {};
@@ -121,7 +125,6 @@ export const useWriterEditor = () => {
           fontFamily: "sans-serif",
           textAlign: "left",
           color: "#000000",
-          editable: true,
         };
         break;
       case "rect":
@@ -183,7 +186,7 @@ export const useWriterEditor = () => {
           borderWidth: 1,
         };
         break;
-      case "table":
+      case "table": {
         const rows = 3;
         const cols = 3;
         block = {
@@ -194,7 +197,6 @@ export const useWriterEditor = () => {
           cols,
           borderColor: "#000000",
           borderWidth: 1,
-          editable: false,
           cells: Array.from({ length: rows }).map(() =>
             Array.from({ length: cols }).map(() => ({
               text: "",
@@ -207,8 +209,8 @@ export const useWriterEditor = () => {
           ),
         };
         break;
+      }
       default:
-        // デフォルトは基本図形として扱う
         block = {
           ...base,
           fillColor: "transparent",
@@ -226,6 +228,7 @@ export const useWriterEditor = () => {
 
   // 画像ブロックを追加（Base64データ付き）
   const addImageBlock = (imageData: string, x: number = 100, y: number = 100) => {
+    // 追加ブロックは常に locked: false, editable: true, source: 'user'
     const block: any = {
       id: nanoid(),
       type: "image",
@@ -239,9 +242,10 @@ export const useWriterEditor = () => {
       isEditing: false,
       rotate: 0,
       zIndex: 100,
-      editable: false,
+      editable: true,
+      locked: false,
+      source: "user",
     };
-
     const newBlocks = [...blocks, block];
     setBlocks(newBlocks);
     setSelectedBlock(block);
@@ -272,6 +276,8 @@ export const useWriterEditor = () => {
       borderColor: "#000000",
       borderWidth: 1,
       editable: true,
+      locked: false,
+      source: "user",
       cells: cells,
     };
 
@@ -283,36 +289,44 @@ export const useWriterEditor = () => {
   };
 
   const updateBlock = (id: string, updated: any) => {
-    // 現在のページのブロックを更新
-    const newBlocks = blocks.map((b) => (b.id === id ? { ...b, ...updated } : b));
-    setBlocks(newBlocks);
-
-    // タイトルプレースホルダーの場合、全ページの同じタイプのブロックを同期
-    // ただし、編集中（isEditing: true）の場合は同期しない（カーソル位置保持のため）
     const targetBlock = blocks.find((b) => b.id === id);
+    if (!targetBlock) return;
+    // タイトルブロック（titlePlaceholder, subtitlePlaceholder）は内容編集のみ許可
     if (
-      targetBlock && 
-      (targetBlock.type === "titlePlaceholder" || targetBlock.type === "subtitlePlaceholder") && 
-      updated.value !== undefined &&
-      updated.isEditing === false // 編集終了時のみ全ページ同期
+      (targetBlock.type === "titlePlaceholder" || targetBlock.type === "subtitlePlaceholder") &&
+      updated.value !== undefined
     ) {
-      const targetType = targetBlock.type;
+      // タイトルブロックは内容編集のみ許可
+      const newBlocks = blocks.map((b) =>
+        b.id === id ? { ...b, value: updated.value } : b
+      );
+      setBlocks(newBlocks);
       setPages((prev) =>
         prev.map((page) => ({
           ...page,
           blocks: page.blocks.map((b) =>
-            b.type === targetType ? { ...b, value: updated.value } : b
+            b.type === targetBlock.type ? { ...b, value: updated.value } : b
           ),
         }))
       );
+      if (selectedBlock?.id === id) {
+        setSelectedBlock((prev: any) => ({ ...prev, value: updated.value }));
+      }
+      updateCurrentPageBlocks(newBlocks);
+      return;
     }
-
-    // 選択中のブロック情報も同期
+    // editable:false でも locked:false なら移動・リサイズは許可（内容編集は不可）
+    if (!targetBlock.editable && targetBlock.locked === false) {
+      // 内容編集不可なので何もしない
+      return;
+    }
+    // 通常ブロックは editable:true のみ編集許可
+    if (!targetBlock.editable) return;
+    const newBlocks = blocks.map((b) => (b.id === id ? { ...b, ...updated } : b));
+    setBlocks(newBlocks);
     if (selectedBlock?.id === id) {
       setSelectedBlock((prev: any) => ({ ...prev, ...updated }));
     }
-
-    // 履歴に保存
     updateCurrentPageBlocks(newBlocks);
   };
 
@@ -323,19 +337,27 @@ export const useWriterEditor = () => {
       return;
     }
     const block = blocks.find((b) => b.id === id);
-    if (block) setSelectedBlock(block);
-    // 異なるブロックに切り替わる場合のみセルをリセット
-    if (selectedBlock?.id !== id) {
-      setSelectedCell(null);
+    // テンプレート由来（locked:true, source:'template'）かつ editable:false の場合は選択不可
+    if (block && block.locked && block.source === "template" && !block.editable) return;
+    // それ以外は選択可
+    if (block) {
+      setSelectedBlock(block);
+      if (selectedBlock?.id !== id) {
+        setSelectedCell(null);
+      }
     }
   };
 
   const deleteBlock = (id: string) => {
     const targetBlock = blocks.find((b) => b.id === id);
-    
     // 削除禁止条件
     if (targetBlock) {
-      // 1. タイトル・サブタイトルプレースホルダーは削除不可
+      // 1. テンプレート由来（locked: true）は削除不可
+      if (targetBlock.locked) {
+        alert("テンプレート由来のブロックは削除できません。");
+        return;
+      }
+      // 2. タイトル・サブタイトルプレースホルダーは削除不可
       if (targetBlock.type === "titlePlaceholder") {
         alert("タイトルブロックは削除できません。");
         return;
@@ -344,14 +366,12 @@ export const useWriterEditor = () => {
         alert("サブタイトルブロックは削除できません。");
         return;
       }
-      
-      // 2. 編集中のブロックは削除不可
+      // 3. 編集中のブロックは削除不可
       if (targetBlock.isEditing === true) {
         alert("編集中のブロックは削除できません。編集を終了してから削除してください。");
         return;
       }
     }
-    
     const newBlocks = blocks.filter((b) => b.id !== id);
     setBlocks(newBlocks);
     updateCurrentPageBlocks(newBlocks);
@@ -364,6 +384,10 @@ export const useWriterEditor = () => {
 
   // ブロックを一括設定
   const setAllBlocks = (newBlocks: any[]) => {
+    if (readOnly) return;
+    // locked: trueのブロックは上書き不可
+    const hasLocked = newBlocks.some((b) => b.locked);
+    if (hasLocked) return;
     setBlocks(newBlocks);
     setSelectedBlock(null);
     setSelectedCell(null);
@@ -373,13 +397,10 @@ export const useWriterEditor = () => {
   const addPage = () => {
     const newPageNumber = pages.length + 1;
     
-    // 1ページ目のテンプレートブロック（通常のテキストブロック以外）をコピー
+    // 1ページ目のテンプレート由来ブロック（locked:true のみ）をコピー
     const firstPage = pages[0];
     const templateBlocks = firstPage?.blocks
-      ? JSON.parse(JSON.stringify(firstPage.blocks)).filter((block: any) => {
-          // 通常のテキストブロックは除外、titlePlaceholder（タイトル）は含める
-          return block.type !== "text";
-        })
+      ? JSON.parse(JSON.stringify(firstPage.blocks)).filter((block: any) => block.locked === true)
       : [];
     
     const newPage: Page = {
@@ -448,6 +469,7 @@ export const useWriterEditor = () => {
   };
 
   const updateCurrentPageBlocks = (newBlocks: any[]) => {
+    if (readOnly) return;
     setPages((prev) =>
       prev.map((p) =>
         p.number === currentPage ? { ...p, blocks: [...newBlocks] } : p
@@ -458,7 +480,8 @@ export const useWriterEditor = () => {
   };
 
   const resetToSinglePage = () => {
-    setPages([{ id: nanoid(), number: 1, blocks: [] }]);
+    // pagesが空の場合のみ初期化（テンプレート読み込み後は上書きしない）
+    setPages((prev) => prev.length === 0 ? [{ id: nanoid(), number: 1, blocks: [] }] : prev);
     setCurrentPage(1);
     setBlocks([]);
     setSelectedBlock(null);
@@ -478,47 +501,49 @@ export const useWriterEditor = () => {
   };
 
   // テンプレート読み込み（読み込みのみ）
-  const loadTemplate = useCallback((templateId: string) => {
+  const loadTemplate = useCallback(async (templateId: string) => {
     if (typeof window === "undefined") return;
-    
-    const templates = JSON.parse(localStorage.getItem("templates") || "[]");
-    const template = templates.find((t: any) => t.id === templateId);
-    
-    console.log("Loading template:", template);
-    
-    if (template) {
-      // 用紙サイズと向きを読み込む
-      const templatePaper = template.paper || "A4";
-      const templateOrientation = template.orientation || "portrait";
-      
-      console.log("Template paper:", templatePaper, "orientation:", templateOrientation);
-      
-      setPaper(templatePaper);
-      setOrientation(templateOrientation);
-      
-      // テンプレートのブロックをディープコピーして、グリッドに揃える
-      const gridSize = 20; // 固定グリッドサイズ
-      const templateBlocks = JSON.parse(JSON.stringify(template.blocks)).map((b: any) => ({
+    try {
+      const res = await fetch(`/api/templates/${templateId}`, { credentials: "include" });
+      if (!res.ok) {
+        console.warn(`[loadTemplate] API returned status ${res.status}`);
+        return;
+      }
+      const data = await res.json();
+      const template = data.template;
+      if (!template || !template.content) {
+        console.warn("[loadTemplate] template or content invalid:", template);
+        return;
+      }
+      // contentは必ず { blocks, paper, orientation } 形式で来る前提
+      const parsed = template.content;
+      // テンプレート由来ブロックには必ずlocked:true, source:'template', editable:(タイトル系のみtrue)を付与
+      const lockedBlocks = (parsed.blocks || []).map((b: any) => ({
         ...b,
-        x: Math.round(b.x / gridSize) * gridSize,
-        y: Math.round(b.y / gridSize) * gridSize,
-        width: Math.round(b.width / gridSize) * gridSize,
-        height: Math.round(b.height / gridSize) * gridSize,
-        isTemplateBlock: true, // テンプレート由来のブロックとしてマーク
+        locked: true,
+        source: "template",
+        editable:
+          b.type === "titlePlaceholder" || b.type === "subtitlePlaceholder"
+            ? true
+            : false,
       }));
-      
-      setBlocks(templateBlocks);
+      setBlocks(lockedBlocks);
+      setPages([{ id: nanoid(), number: 1, blocks: lockedBlocks }]);
+      setCurrentPage(1);
       setSelectedBlock(null);
       setSelectedCell(null);
-      
-      // 単一ページにリセット
-      setPages([{ id: nanoid(), number: 1, blocks: templateBlocks }]);
-      setCurrentPage(1);
+      setPaper(parsed.paper || "A4");
+      setOrientation(parsed.orientation || "portrait");
+      setSelectedTemplateId(templateId);
+      console.log("[loadTemplate] blocks applied:", lockedBlocks);
+    } catch (e) {
+      console.error("[loadTemplate] fetch or parse error:", e);
     }
   }, []);
 
   // 文書保存
   const saveDocument = (title: string, status: "draft" | "submitted" = "draft") => {
+    if (readOnly) return null;
     const document = {
       id: nanoid(),
       title,
@@ -532,18 +557,20 @@ export const useWriterEditor = () => {
     const updated = [...existing, document];
     localStorage.setItem("documents", JSON.stringify(updated));
 
-    return document;
+    return document ?? null;
   };
 
   // 下書き保存（名前を付けて保存）
   const saveDraft = (title: string) => {
+    if (readOnly) return null;
     const document = saveDocument(title, "draft");
-    setCurrentDocumentId(document.id);
+    setCurrentDocumentId(document?.id ?? null);
     return document;
   };
 
   // 下書き上書き保存
   const overwriteDraft = (title: string) => {
+    if (readOnly) return null;
     if (!currentDocumentId) {
       // IDがない場合は新規保存
       return saveDraft(title);
@@ -575,8 +602,9 @@ export const useWriterEditor = () => {
   };
 
   // 文書提出
-  const submitDocument = (title: string, folderId?: number) => {
-    return saveDocument(title, "submitted", folderId);
+  const submitDocument = (title: string) => {
+    if (readOnly) return null;
+    return saveDocument(title, "submitted");
   };
 
   // 下書き読み込み
@@ -593,6 +621,9 @@ export const useWriterEditor = () => {
   };
 
   return {
+      selectedTemplateId,
+      setSelectedTemplateId,
+    readOnly,
     // ブロック管理
     blocks,
     addBlock,
@@ -639,3 +670,5 @@ export const useWriterEditor = () => {
     canRedo: historyIndex < history.length - 1,
   };
 };
+
+export default useWriterEditor;

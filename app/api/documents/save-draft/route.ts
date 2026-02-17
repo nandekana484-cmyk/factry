@@ -9,6 +9,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { documentId, title, blocks, folderId, documentTypeId } = body;
 
+    console.log("[save-draft] body:", body);
+
     if (!title) {
       return NextResponse.json(
         { error: "Title is required" },
@@ -16,46 +18,45 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!blocks || !Array.isArray(blocks) || blocks.length === 0) {
+      return NextResponse.json(
+        { error: "Blocks is required and must be a non-empty array" },
+        { status: 400 }
+      );
+    }
+
+    // ★★★ テンプレートブロックは保存しない ★★★
+    const userBlocks = blocks.filter((b: any) => b.source === "user");
+
     const result = await prisma.$transaction(async (tx) => {
       let document;
 
       if (documentId) {
-        // 既存文書を更新
         const existing = await tx.document.findUnique({
           where: { id: documentId },
         });
 
-        if (!existing) {
-          throw new Error("Document not found");
-        }
-
-        // 作成者のみ編集可能
-        if (existing.creator_id !== user.id) {
+        if (!existing) throw new Error("Document not found");
+        if (existing.creator_id !== user.id)
           throw new Error("Only creator can edit this document");
-        }
-
-        // draft状態のみ編集可能
-        if (existing.status !== "draft") {
+        if (existing.status !== "draft")
           throw new Error("Only draft documents can be edited");
-        }
 
-        // 文書を更新
         document = await tx.document.update({
           where: { id: documentId },
           data: {
             title,
-            folder_id: folderId !== undefined ? folderId : existing.folder_id,
-            document_type_id: documentTypeId !== undefined ? documentTypeId : existing.document_type_id,
+            folder_id: folderId ?? existing.folder_id,
+            document_type_id:
+              documentTypeId ?? existing.document_type_id,
             updated_at: new Date(),
           },
         });
 
-        // 既存のブロックを削除
         await tx.documentBlock.deleteMany({
           where: { document_id: documentId },
         });
       } else {
-        // 新規文書を作成
         document = await tx.document.create({
           data: {
             title,
@@ -63,31 +64,29 @@ export async function POST(req: Request) {
             creator_id: user.id,
             folder_id: folderId || null,
             document_type_id: documentTypeId || null,
+            sequence: 1,
           },
         });
       }
 
-      // ブロックを作成
-      if (blocks && Array.isArray(blocks)) {
-        await tx.documentBlock.createMany({
-          data: blocks.map((block: any, index: number) => ({
-            document_id: document.id,
-            type: block.type || "text",
-            content: JSON.stringify(block),
-            position_x: block.x || 0,
-            position_y: block.y || 0,
-            width: block.width || 100,
-            height: block.height || 100,
-            sort_order: index,
-          })),
-        });
-      }
+      // ★★★ 保存するのは userBlocks のみ ★★★
+      await tx.documentBlock.createMany({
+        data: userBlocks.map((block: any, index: number) => ({
+          document_id: document.id,
+          type: block.type || "text",
+          content: JSON.stringify(block),
+          position_x: block.x || 0,
+          position_y: block.y || 0,
+          width: block.width || 100,
+          height: block.height || 100,
+          sort_order: index,
+        })),
+      });
 
       return document;
     });
 
     return NextResponse.json({
-      ok: true,
       documentId: result.id,
       status: result.status,
     });

@@ -183,11 +183,12 @@ model Document {
 
   creator_id       Int
   template_id      Int?
-  folder_id        Int
+  folder_id        Int? // ★ nullable に変更
+  folder           Folder? @relation(fields: [folder_id], references: [id]) // ★ optional に変更
   document_type_id Int?
 
   // フォルダ内での連番
-  sequence Int
+  sequence Int? // ★ optional に変更
 
   // 改訂番号
   revision Int @default(0)
@@ -209,7 +210,6 @@ model Document {
 
   // リレーション
   documentType DocumentType? @relation(fields: [document_type_id], references: [id])
-  folder       Folder        @relation(fields: [folder_id], references: [id])
   creator      User          @relation("DocumentCreator", fields: [creator_id], references: [id])
 
   // 改訂履歴

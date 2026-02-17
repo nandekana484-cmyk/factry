@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth, canAssignWorkflowRole } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
+import { canAssignWorkflowRole } from "@/lib/role";
 import { UserRole } from "@/types/document";
 
 // 確認処理（checking → pending）

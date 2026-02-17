@@ -13,8 +13,8 @@ interface LeftSidebarProps {
  */
 export function LeftSidebar({ editor, setIsDirty }: LeftSidebarProps) {
   return (
-    <div 
-      className="border-r overflow-y-auto"
+    <div
+      className="border-r flex flex-col h-full flex-1"
       style={{
         width: "260px",
         flex: "0 0 260px",
@@ -23,9 +23,8 @@ export function LeftSidebar({ editor, setIsDirty }: LeftSidebarProps) {
       }}
       data-ignore-deselect="true"
     >
-      {/* 特別なボタン（タイトル・承認印） */}
+      {/* 固定表示：タイトル・サブタイトル・管理番号・承認印追加ボタン群 */}
       <div className="p-4 border-b bg-white space-y-2">
-
         <div className="text-lg font-bold text-gray-600 mt-3 mb-1">タイトル追加</div>
         <div className="text-xs font-bold text-gray-600 mt-3 mb-1">1テンプレートに1つ設置します</div>
         <button
@@ -38,7 +37,6 @@ export function LeftSidebar({ editor, setIsDirty }: LeftSidebarProps) {
           タイトル追加
         </button>
         <div className="text-xs font-bold text-gray-600 mt-3 mb-1">→ファイル名になります。ここでは記入しません</div>
-
         <button
           onClick={() => {
             editor.addBlock("subtitlePlaceholder");
@@ -49,7 +47,7 @@ export function LeftSidebar({ editor, setIsDirty }: LeftSidebarProps) {
           サブタイトル追加
         </button>
         <div className="text-xs font-bold text-gray-600 mt-3 mb-1">→ファイル種類になります”報告書など”</div>
-                <button
+        <button
           onClick={() => {
             editor.addBlock("managementNumberPlaceholder");
             setIsDirty(true);
@@ -58,9 +56,8 @@ export function LeftSidebar({ editor, setIsDirty }: LeftSidebarProps) {
         >
           管理番号追加
         </button>
-        <div className="text-xs font-bold text-gray-600 mt-3 mb-1">→文書の管理番号プレースホルダー</div><br />
-                <div className="text-lg font-bold text-gray-600 mt-3 mb-1">承認印追加</div>
-        
+        <div className="text-xs font-bold text-gray-600 mt-3 mb-1">→文書の管理番号プレースホルダー</div>
+        <div className="text-lg font-bold text-gray-600 mt-3 mb-1">承認印追加</div>
         <button
           onClick={() => {
             editor.addBlock("approvalStampPlaceholder", "creator");
@@ -70,7 +67,6 @@ export function LeftSidebar({ editor, setIsDirty }: LeftSidebarProps) {
         >
           作成者印
         </button>
-        
         <button
           onClick={() => {
             editor.addBlock("approvalStampPlaceholder", "checker");
@@ -80,7 +76,6 @@ export function LeftSidebar({ editor, setIsDirty }: LeftSidebarProps) {
         >
           確認者印
         </button>
-        
         <button
           onClick={() => {
             editor.addBlock("approvalStampPlaceholder", "approver");
@@ -91,18 +86,19 @@ export function LeftSidebar({ editor, setIsDirty }: LeftSidebarProps) {
           承認者印
         </button>
       </div>
-
-      {/* 図形パレット */}
-      <FieldPalette
-        onAdd={(type, role) => {
-          editor.addBlock(type, role);
-          setIsDirty(true);
-        }}
-        onAddImage={(imageData) => {
-          editor.addImageBlock(imageData);
-          setIsDirty(true);
-        }}
-      />
+      {/* スクロール部分：図形パレット */}
+      <div className="flex-1 overflow-y-auto">
+        <FieldPalette
+          onAdd={(type, role) => {
+            editor.addBlock(type, role);
+            setIsDirty(true);
+          }}
+          onAddImage={(imageData) => {
+            editor.addImageBlock(imageData);
+            setIsDirty(true);
+          }}
+        />
+      </div>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+await Promise.resolve();
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
@@ -78,11 +80,11 @@ export async function GET(req: Request) {
         id: doc.id,
         title: doc.title,
         status: doc.status,
-        managementNumber: generateManagementNumber(
-          doc.folder,
-          doc.sequence,
-          doc.revision
-        ),
+        managementNumber: doc.folder
+            ? (doc.sequence != null && doc.revision != null
+              ? generateManagementNumber(doc.folder, doc.sequence, doc.revision)
+              : null)
+            : null,
         creator: doc.creator,
         folder: doc.folder,
         documentType: doc.documentType,
@@ -91,11 +93,11 @@ export async function GET(req: Request) {
           ? {
               id: doc.revisionHistories[0].id,
               // 履歴の管理番号も動的生成（必要なら）
-              managementNumber: generateManagementNumber(
-                doc.folder,
-                doc.sequence,
-                doc.revision
-              ),
+              managementNumber: doc.folder
+                ? (doc.sequence != null && doc.revision != null
+                  ? generateManagementNumber(doc.folder, doc.sequence, doc.revision)
+                  : null)
+                : null,
               revisionSymbol: doc.revisionHistories[0].revision_symbol,
               approvedBy: doc.revisionHistories[0].approvedBy,
               approvedAt: doc.revisionHistories[0].approved_at,
@@ -202,7 +204,7 @@ export async function POST(req: Request) {
       where: { folder_id: folderId },
       orderBy: { sequence: "desc" },
     });
-    const nextSequence = lastDocument ? lastDocument.sequence + 1 : 1;
+    const nextSequence = lastDocument ? (lastDocument.sequence ?? 0) + 1 : 1;
     const document = await prisma.document.create({
       data: {
         title,
@@ -234,11 +236,10 @@ export async function POST(req: Request) {
         id: document.id,
         title: document.title,
         status: document.status,
-        managementNumber: generateManagementNumber(
-          document.folder,
-          document.sequence,
-          document.revision
-        ),
+        managementNumber:
+          document.folder && document.sequence != null && document.revision != null
+            ? generateManagementNumber(document.folder, document.sequence, document.revision)
+            : null,
         creator_id: document.creator_id,
         folder_id: document.folder_id,
         sequence: document.sequence,

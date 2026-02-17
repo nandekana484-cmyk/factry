@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useWriterEditor } from "@/lib/useWriterEditor";
+import useWriterEditor from "@/lib/useWriterEditor";
 import { useWriterPaste } from "./hooks/useWriterPaste";
 import { useWriterDeleteKey } from "./hooks/useWriterDeleteKey";
 import { useWriterLoader, useTemplateLoadHandler, useDraftLoadHandler } from "./hooks/useWriterLoader";
@@ -24,6 +24,8 @@ export default function WriterPage() {
   const [isDirty, setIsDirty] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [showPropertyBox, setShowPropertyBox] = useState(false);
+  // テンプレート一覧再取得用
+  const [templateRefresh, setTemplateRefresh] = useState(0);
   const [templates, setTemplates] = useState<any[]>([]);
   const [draftDocuments, setDraftDocuments] = useState<any[]>([]);
   const [showFolderSelect, setShowFolderSelect] = useState(false);
@@ -107,8 +109,10 @@ export default function WriterPage() {
           if (response.ok) {
             const data = await response.json();
             const doc = data.document;
-            // 文書データを editor に読み込む
-            editor.setAllBlocks(doc.blocks || []);
+            // 文書データを editor に読み込む（pages形式対応）
+            if (doc.pages && doc.pages.length > 0) {
+              editor.loadPages(doc.pages);
+            }
             editor.setCurrentDocumentId(doc.id);
             console.log("文書を読み込みました:", doc.title);
           } else {
@@ -199,9 +203,9 @@ export default function WriterPage() {
             setIsDirty(true);
           }}
           onAddPage={actions.handleAddPage}
-          templates={templates}
           draftDocuments={draftDocuments}
           onLoadTemplate={handleLoadTemplate}
+          templateRefresh={templateRefresh}
           onLoadDraft={handleLoadDraft}
           documentTypes={documentTypes}
           selectedDocumentTypeId={selectedDocumentTypeId}
@@ -240,6 +244,7 @@ export default function WriterPage() {
           onRedo={editor.redo}
           canUndo={editor.canUndo}
           canRedo={editor.canRedo}
+          readOnly={false}
         />
 
         {/* ページタブ（下部） */}

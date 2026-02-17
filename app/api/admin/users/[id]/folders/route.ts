@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET: ユーザーのアクセス可能なフォルダID一覧
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const { id } = await params;
-  const userId = parseInt(id);
+export async function GET(req: Request, { params }: { params: { _id: string } }) {
+  const userId = parseInt(params._id);
   const access = await prisma.user_folder_access.findMany({
     where: { userId },
     select: { folderId: true, canRead: true, canWrite: true },
@@ -19,9 +18,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 }
 
 // PUT: アクセス権を保存
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const { id } = await params;
-  const userId = parseInt(id);
+export async function PUT(req: Request, { params }: { params: { _id: string } }) {
+  const userId = parseInt(params._id);
   const { folderAccess } = await req.json();
   // 既存削除
   await prisma.user_folder_access.deleteMany({ where: { userId } });

@@ -1,70 +1,102 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-
-// 引き戻し（pending → draft、作成者が実行）
+import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
+// 下書き保存（draft のまま保存）
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
-    const { documentId, comment } = await req.json();
+    const body = await req.json();
+    const { documentId, title, blocks, folderId, documentTypeId } = body;
 
-    if (!documentId) {
+    console.log("[save-draft] body:", body);
+
+    if (!title) {
       return NextResponse.json(
-        { error: "documentId is required" },
+        { error: "Title is required" },
         { status: 400 }
       );
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // 文書の状態を確認
-      const document = await tx.document.findUnique({
-        where: { id: documentId },
-        include: { approvalRequest: true },
-      });
+    if (!blocks || !Array.isArray(blocks) || blocks.length === 0) {
+      return NextResponse.json(
+        { error: "Blocks is required and must be a non-empty array" },
+        { status: 400 }
+      );
+    }
 
-      if (!document) {
-        throw new Error("Document not found");
-      }
+    // ★★★ ここが最重要 ★★★
+    // テンプレート由来のブロックは保存しない
+    const userBlocks = blocks.filter((b: any) => b.source === "user");
 
-      // 作成者のみ実行可能
-      if (document.creator_id !== user.id) {
-        throw new Error("Only the creator can withdraw the document");
-      }
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      let document;
 
-      // checking または pending のみ引き戻し可能
-      if (document.status !== "checking" && document.status !== "pending") {
-        throw new Error("Only checking or pending documents can be withdrawn");
-      }
+      if (documentId) {
+        const existing = await tx.document.findUnique({
+          where: { id: documentId },
+        });
 
-      // 文書の状態を draft に戻す
-      await tx.document.update({
-        where: { id: documentId },
-        data: { status: "draft" },
-      });
+        if (!existing) throw new Error("Document not found");
+        if (existing.creator_id !== user.id)
+          throw new Error("Only creator can edit this document");
+        if (existing.status !== "draft")
+          throw new Error("Only draft documents can be edited");
 
-      // 承認リクエストを削除
-      if (document.approvalRequest) {
-        await tx.approvalRequest.delete({
+        document = await tx.document.update({
+          where: { id: documentId },
+          data: {
+            title,
+            folder_id: folderId ?? existing.folder_id,
+            document_type_id:
+              documentTypeId ?? existing.document_type_id,
+            updated_at: new Date(),
+          },
+        });
+
+        await tx.documentBlock.deleteMany({
           where: { document_id: documentId },
+        });
+      } else {
+        document = await tx.document.create({
+          data: {
+            title,
+            status: "draft",
+            creator_id: user.id,
+            folder_id: folderId || null,
+            document_type_id: documentTypeId || null,
+            sequence: 1,
+          },
         });
       }
 
-      // 履歴を記録
-      await tx.approvalHistory.create({
-        data: {
-          document_id: documentId,
-          user_id: user.id,
-          action: "withdrawn",
-          comment: comment || null,
-        },
+      // ★★★ 保存するのは userBlocks のみ ★★★
+      await tx.documentBlock.createMany({
+        data: userBlocks.map((block: any, index: number) => ({
+          document_id: document.id,
+          type: block.type || "text",
+          content: JSON.stringify(block),
+          position_x: block.x || 0,
+          position_y: block.y || 0,
+          width: block.width || 100,
+          height: block.height || 100,
+          sort_order: index,
+        })),
       });
 
-      return { status: "draft" };
+      return document;
     });
 
-    return NextResponse.json({ ok: true, status: result.status });
+    return NextResponse.json({
+      documentId: result.id,
+      status: result.status,
+    });
   } catch (error: any) {
-    console.error("Withdraw document error:", error);
+    console.error(
+      "Save draft error:",
+      error,
+      JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+    );
 
     if (error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -75,14 +107,14 @@ export async function POST(req: Request) {
     }
 
     if (
-      error.message === "Only the creator can withdraw the document" ||
-      error.message === "Only pending documents can be withdrawn"
+      error.message === "Only creator can edit this document" ||
+      error.message === "Only draft documents can be edited"
     ) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
     return NextResponse.json(
-      { error: "Failed to withdraw document" },
+      { error: "Failed to save draft" },
       { status: 500 }
     );
   }

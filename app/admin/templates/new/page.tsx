@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTemplateEditor } from "@/lib/useTemplateEditor";
 import { useTemplateSave } from "./hooks/useTemplateSave";
 import { useTemplateLoad } from "./hooks/useTemplateLoad";
@@ -21,6 +22,7 @@ import TemplateCanvas from "./components/TemplateCanvas";
  * - コンポーネント配置
  */
 export default function TemplateCreatePage() {
+  const searchParams = useSearchParams();
   const editor = useTemplateEditor();
 
   const [templateRefresh, setTemplateRefresh] = useState(0);
@@ -62,6 +64,15 @@ export default function TemplateCreatePage() {
     setTemplateRefresh,
   });
 
+  // クエリからtemplateIdがあれば自動で読み込む
+  useEffect(() => {
+    const templateId = searchParams.get("templateId");
+    if (templateId) {
+      handleLoadTemplate(templateId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // 未保存ガード関連のhooks
   const {
     showUnsavedDialog,
@@ -99,7 +110,7 @@ export default function TemplateCreatePage() {
   return (
     <div className="flex h-screen gap-0 overflow-hidden">
       {/* 左サイドバー：FieldPalette */}
-      <div className="no-print">
+      <div className="no-print h-full flex flex-col min-h-0">
         <LeftSidebar editor={editor} setIsDirty={setIsDirty} />
       </div>
 

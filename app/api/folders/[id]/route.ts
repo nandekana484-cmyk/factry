@@ -43,7 +43,7 @@ export async function GET(
 // フォルダ更新
 export async function PUT(
   req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     await requireAuth();
@@ -58,8 +58,7 @@ export async function PUT(
       );
     }
 
-    // paramsがPromiseの場合にawaitでアンラップ
-    const { id } = await ctx.params;
+    const id = params.id;
 
     const updateData = {
       name,

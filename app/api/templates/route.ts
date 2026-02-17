@@ -18,14 +18,24 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
-      templates: templates.map((t) => ({
-        id: t.id.toString(),
-        name: t.name,
-        content: JSON.parse(t.content),
-        createdBy: t.creator.name,
-        createdAt: t.created_at.getTime(),
-        updatedAt: t.updated_at.getTime(),
-      })),
+      templates: templates.map((t) => {
+        let parsed;
+        try {
+          parsed = JSON.parse(t.content);
+        } catch {
+          parsed = {};
+        }
+        return {
+          id: t.id.toString(),
+          name: t.name,
+          content: Array.isArray(parsed.blocks) ? parsed.blocks : [],
+          paper: parsed.paper ?? null,
+          orientation: parsed.orientation ?? null,
+          createdBy: t.creator.name,
+          createdAt: t.created_at.getTime(),
+          updatedAt: t.updated_at.getTime(),
+        };
+      }),
     });
   } catch (error: any) {
     console.error("Get templates error:", error);

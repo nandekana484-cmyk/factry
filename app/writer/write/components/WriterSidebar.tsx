@@ -1,6 +1,7 @@
 "use client";
 
 import FieldPalette from "@/components/FieldPalette";
+import TemplateSelectorModal from "@/components/TemplateSelectorModal";
 
 interface WriterSidebarProps {
   onGoBack: () => void;
@@ -8,9 +9,10 @@ interface WriterSidebarProps {
   onAddPage: () => void;
   onAddBlock: (type: string, role?: string) => void;
   onAddImage?: (imageData: string) => void;
-  templates: any[];
+  // templates: any[]; // テンプレート一覧はTemplateSelectorModalで取得するため不要
   draftDocuments: any[];
   onLoadTemplate: (templateId: string) => void;
+  templateRefresh: any;
   onLoadDraft: (draft: any) => void;
   documentTypes?: any[];
   selectedDocumentTypeId?: number | null;
@@ -30,9 +32,10 @@ export default function WriterSidebar({
   onAddPage,
   onAddBlock,
   onAddImage,
-  templates,
+  // templates,
   draftDocuments,
   onLoadTemplate,
+  templateRefresh,
   onLoadDraft,
   documentTypes = [],
   selectedDocumentTypeId,
@@ -52,23 +55,13 @@ export default function WriterSidebar({
       }}
       data-ignore-deselect="true"
     >
-      {/* 最上部: テンプレート選択 */}
+      {/* 最上部: テンプレート選択モーダルボタン */}
       <div className="p-4 border-b bg-white">
-        <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1">テンプレート選択</label>
-          <select
-            onChange={(e) => e.target.value && onLoadTemplate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            defaultValue=""
-          >
-            <option value="">テンプレートを選択...</option>
-            {templates.map((template: any) => (
-              <option key={template.id} value={template.id}>
-                {template.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <label className="block text-xs font-bold text-gray-700 mb-1">テンプレート選択</label>
+        <TemplateSelectorModal
+          handleLoadTemplate={onLoadTemplate}
+          templateRefresh={templateRefresh}
+        />
       </div>
 
       {/* アクションボタン */}

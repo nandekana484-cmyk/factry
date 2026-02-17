@@ -6,12 +6,11 @@ import { generateManagementNumber } from "@/lib/documentNumber";
 // 改訂履歴取得
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     await requireAuth();
-    const { id } = await params;
-    const documentId = parseInt(id);
+    const documentId = parseInt(params.id);
 
     // 文書の存在確認
     const document = await prisma.document.findUnique({

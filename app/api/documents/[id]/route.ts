@@ -1,176 +1,120 @@
+await Promise.resolve();
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-import { generateManagementNumber } from "@/lib/documentNumber";
 
-// 文書取得
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    const documentId = parseInt(id);
+  await Promise.resolve();
 
-    const document = await prisma.document.findUnique({
-      where: { id: documentId },
-      include: {
-        folder: true,
-        creator: {
-          select: { id: true, name: true, email: true, role: true },
-        },
-        blocks: {
-          orderBy: { sort_order: "asc" },
-        },
-        approvalRequest: {
-          include: {
-            requester: {
-              select: { id: true, name: true, email: true },
-            },
-            checker: {
-              select: { id: true, name: true, email: true },
-            },
-            approver: {
-              select: { id: true, name: true, email: true },
-            },
-          },
-        } as any,
-        revisionHistories: {
-          where: { approved_at: { not: null } },
-          orderBy: { approved_at: "desc" },
-          take: 1,
-          include: {
-            approvedBy: {
-              select: { id: true, name: true },
-            },
-            checkedBy: {
-              select: { id: true, name: true },
-            },
-            createdBy: {
-              select: { id: true, name: true },
-            },
-          },
-        },
-        _count: {
-          select: {
-            revisionHistories: {
-              where: { approved_at: { not: null } },
-            },
-          } as any,
-        },
-      },
+  const { id } = await context.params;
+  const documentId = parseInt(id, 10);
+
+  if (isNaN(documentId)) {
+    return NextResponse.json({ error: "Invalid document id" }, { status: 400 });
+  }
+
+  try {
+    const user = await requireAuth();
+
+    // ★★★ admin は全件読める、それ以外は creator のみ ★★★
+    const where =
+      user.role === "admin"
+        ? { id: documentId }
+        : { id: documentId, creator_id: user.id };
+
+    const document = await prisma.document.findFirst({
+      where,
+      include: { blocks: true },
     });
 
     if (!document) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
 
-    // ブロックのcontentをパース
-    const blocks = (document as any).blocks.map((block: any) => ({
-      ...JSON.parse(block.content),
-      id: block.id,
-    }));
+    const restoredBlocks = document.blocks.map((block: any) => {
+      const parsed = JSON.parse(block.content);
+
+      return {
+        ...parsed,
+        id: block.id,
+        x: parsed.x ?? block.position_x,
+        y: parsed.y ?? block.position_y,
+        width: parsed.width ?? block.width,
+        height: parsed.height ?? block.height,
+        locked: false,
+        editable: true,
+        source: "user",
+      };
+    });
+
+    const pages = [
+      {
+        id: "page-1",
+        number: 1,
+        blocks: restoredBlocks,
+      },
+    ];
 
     return NextResponse.json({
-      ok: true,
       document: {
         id: document.id,
         title: document.title,
-        status: document.status,
-        managementNumber: generateManagementNumber(
-          document.folder,
-          document.sequence,
-          document.revision
-        ),
-        creator: document.creator,
-        blocks,
-        approvalRequest: document.approvalRequest,
-        latestRevision: document.revisionHistories[0]
-          ? {
-              id: document.revisionHistories[0].id,
-              managementNumber: generateManagementNumber(
-                document.folder,
-                document.sequence,
-                document.revision
-              ),
-              revisionSymbol: document.revisionHistories[0].revision_symbol,
-              title: document.revisionHistories[0].title,
-              approvedBy: document.revisionHistories[0].approvedBy,
-              checkedBy: document.revisionHistories[0].checkedBy,
-              createdBy: document.revisionHistories[0].createdBy,
-              approvedAt: document.revisionHistories[0].approved_at,
-            }
-          : null,
-        revisionCount: document._count.revisionHistories,
+        pages,
         createdAt: document.created_at,
         updatedAt: document.updated_at,
       },
     });
   } catch (error) {
     console.error("Get document error:", error);
-    return NextResponse.json(
-      { error: "Failed to get document" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to get document" }, { status: 500 });
   }
 }
 
-// 文書削除
 export async function DELETE(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
+  await Promise.resolve();
+
+  const { id } = await context.params;
+  const documentId = parseInt(id, 10);
+
+  if (isNaN(documentId)) {
+    return NextResponse.json({ error: "Invalid document id" }, { status: 400 });
+  }
+
   try {
     const user = await requireAuth();
-    const { id } = await params;
-    const documentId = parseInt(id);
 
-    const document = await prisma.document.findUnique({
-      where: { id: documentId },
+    // admin は全削除可能、それ以外は自分の文書のみ
+    const where =
+      user.role === "admin"
+        ? { id: documentId }
+        : { id: documentId, creator_id: user.id };
+
+    const existing = await prisma.document.findFirst({ where });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    // ブロック削除
+    await prisma.documentBlock.deleteMany({
+      where: { document_id: documentId },
     });
 
-    if (!document) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 }
-      );
-    }
-
-    // 作成者のみ削除可能
-    if ((document as any).creator_id !== user.id) {
-      return NextResponse.json(
-        { error: "Only creator can delete this document" },
-        { status: 403 }
-      );
-    }
-
-    // 下書きのみ削除可能
-    if (document.status !== "draft") {
-      return NextResponse.json(
-        { error: "Only draft documents can be deleted" },
-        { status: 403 }
-      );
-    }
-
-    // 文書とそれに紐づくブロックを削除（カスケード削除）
+    // 文書削除
     await prisma.document.delete({
       where: { id: documentId },
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Delete document error:", error);
-
-    if (error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    return NextResponse.json(
-      { error: "Failed to delete document" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete document" }, { status: 500 });
   }
 }

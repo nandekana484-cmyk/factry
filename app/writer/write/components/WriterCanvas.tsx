@@ -38,6 +38,7 @@ interface WriterCanvasProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  readOnly?: boolean;
 }
 
 /**
@@ -69,26 +70,23 @@ export default function WriterCanvas({
   onRedo,
   canUndo,
   canRedo,
+  readOnly = false
 }: WriterCanvasProps) {
   // グローバルクリックリスナーでキャンバス外クリックも選択解除
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      
       // data-block-idを持つ要素（ブロック）をクリックした場合は何もしない
       if (target.closest('[data-block-id]')) {
         return;
       }
-      
       // data-ignore-deselectを持つ要素（UIボタンなど）をクリックした場合は何もしない
       if (target.closest('[data-ignore-deselect]')) {
         return;
       }
-      
       // 上記以外の場合は選択解除
       onSelectBlock(null);
     };
-    
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onSelectBlock]);
@@ -374,8 +372,8 @@ export default function WriterCanvas({
                       updateBlock={onUpdateBlock}
                       selectBlock={onSelectBlock}
                       snap={snap}
-                      isReadOnly={false}
-                      isTextEditable={true}
+                      isReadOnly={readOnly || block.locked === true}
+                      isTextEditable={block.locked !== true}
                     />
                   );
                 }
@@ -389,7 +387,7 @@ export default function WriterCanvas({
                       updateBlock={onUpdateBlock}
                       selectBlock={onSelectBlock}
                       snap={snap}
-                      isReadOnly={true}
+                      isReadOnly={readOnly || block.locked === true}
                       currentPage={currentPage}
                     />
                   );
@@ -404,7 +402,7 @@ export default function WriterCanvas({
                     updateBlock={onUpdateBlock}
                     selectBlock={onSelectBlock}
                     snap={snap}
-                    isReadOnly={block.isTemplateBlock === true}
+                    isReadOnly={readOnly || block.locked === true}
                   />
                 );
               })}

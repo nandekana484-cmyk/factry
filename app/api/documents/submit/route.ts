@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth, canAssignWorkflowRole } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
+import { canAssignWorkflowRole } from "@/lib/role";
 import { UserRole } from "@/types/document";
 
-// 承認申請（draft → pending）
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
-    const { documentId, checkerId, approverId, comment } = await req.json();
+    const body = await req.json();
+
+    console.log("submit body:", body);
+
+    const { documentId, checkerId, approverId, comment } = body;
 
     if (!documentId) {
       return NextResponse.json(
@@ -24,36 +28,71 @@ export async function POST(req: Request) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // 文書の状態を確認
       const document = await tx.document.findUnique({
         where: { id: documentId },
       });
 
       if (!document) {
-        throw new Error("Document not found");
+        return NextResponse.json(
+          { error: "Document not found" },
+          { status: 404 }
+        );
       }
 
-      // 作成者のみ実行可能
-      if (document.creator_id !== user.id || !canAssignWorkflowRole(user.role, "creator")) {
-        throw new Error("Only creator can submit this document");
+      // ★★★ 作成者チェック（role チェックは不要）★★★
+      if (document.creator_id !== user.id) {
+        return NextResponse.json(
+          { error: "Only creator can submit this document" },
+          { status: 403 }
+        );
       }
 
-      // checker/approverのroleチェック
-      const checkerUser = await tx.user.findUnique({ where: { id: checkerId } });
-      if (!checkerUser || !canAssignWorkflowRole(checkerUser.role, "checker")) {
-        throw new Error("Invalid checker role");
+      // ★★★ checker role チェック ★★★
+      const checkerUser = await tx.user.findUnique({
+        where: { id: checkerId },
+      });
+
+      if (!checkerUser) {
+        return NextResponse.json(
+          { error: "Checker user not found" },
+          { status: 404 }
+        );
       }
-      const approverUser = await tx.user.findUnique({ where: { id: approverId } });
-      if (!approverUser || !canAssignWorkflowRole(approverUser.role, "approver")) {
-        throw new Error("Invalid approver role");
+
+      if (!canAssignWorkflowRole(checkerUser.role as UserRole, "checker")) {
+        return NextResponse.json(
+          { error: "Invalid checker role" },
+          { status: 400 }
+        );
+      }
+
+      // ★★★ approver role チェック ★★★
+      const approverUser = await tx.user.findUnique({
+        where: { id: approverId },
+      });
+
+      if (!approverUser) {
+        return NextResponse.json(
+          { error: "Approver user not found" },
+          { status: 404 }
+        );
+      }
+
+      if (!canAssignWorkflowRole(approverUser.role as UserRole, "approver")) {
+        return NextResponse.json(
+          { error: "Invalid approver role" },
+          { status: 400 }
+        );
       }
 
       if (document.status !== "draft") {
-        throw new Error("Only draft documents can be submitted");
+        return NextResponse.json(
+          { error: "Only draft documents can be submitted" },
+          { status: 403 }
+        );
       }
 
-      // 文書の状態を checking に更新（確認待ち）
-      // フォルダIDと文書種別IDは draft 時に設定済み
+      // ★★★ 文書ステータス更新 ★★★
       await tx.document.update({
         where: { id: documentId },
         data: {
@@ -61,7 +100,7 @@ export async function POST(req: Request) {
         },
       });
 
-      // 承認リクエストを作成
+      // ★★★ 承認リクエスト作成 ★★★
       await tx.approvalRequest.create({
         data: {
           document_id: documentId,
@@ -72,7 +111,7 @@ export async function POST(req: Request) {
         },
       });
 
-      // 履歴を記録
+      // ★★★ 履歴作成 ★★★
       await tx.approvalHistory.create({
         data: {
           document_id: documentId,
@@ -89,23 +128,8 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Submit for approval error:", error);
 
-    if (error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (error.message === "Document not found") {
-      return NextResponse.json({ error: error.message }, { status: 404 });
-    }
-
-    if (
-      error.message === "Only creator can submit this document" ||
-      error.message === "Only draft documents can be submitted"
-    ) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-
     return NextResponse.json(
-      { error: "Failed to submit for approval" },
+      { error: error.message || "Failed to submit for approval" },
       { status: 500 }
     );
   }

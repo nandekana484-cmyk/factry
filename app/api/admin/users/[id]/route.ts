@@ -1,18 +1,46 @@
+// Next.js の同期 API 誤判定を防ぐ
+await Promise.resolve();
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 
-export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
-  const user = await requireAdmin();
+export async function PATCH(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  await Promise.resolve();
+
+  const { id } = await context.params; // ★★★ 必ず await ★★★
+  const userId = Number(id);
+
+  if (isNaN(userId)) {
+    return NextResponse.json({ error: "Invalid user id" }, { status: 400 });
+  }
+
+  const admin = await requireAdmin();
   const body = await req.json();
-  const { name, email, role, disabled, department_id, section_id, position_id, last_name, first_name, middle_name } = body;
+
+  const {
+    name,
+    email,
+    role,
+    disabled,
+    department_id,
+    section_id,
+    position_id,
+    last_name,
+    first_name,
+    middle_name,
+  } = body;
+
   const validRoles = ["user", "creator", "checker", "approver", "admin"];
   if (role && !validRoles.includes(role)) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
-  const { id } = await context.params;
+
   const updated = await prisma.user.update({
-    where: { id: Number(id) },
+    where: { id: userId },
     data: {
       ...(name !== undefined && { name }),
       ...(email !== undefined && { email }),
@@ -31,15 +59,6 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       position: true,
     },
   });
+
   return NextResponse.json(updated);
-}
-export async function DELETE(req: Request, context: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
-  const { id } = await context.params;
-  try {
-    await prisma.user.delete({ where: { id: Number(id) } });
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return NextResponse.json({ error: "削除に失敗しました" }, { status: 500 });
-  }
 }
