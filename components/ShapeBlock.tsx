@@ -114,7 +114,9 @@ export default function ShapeBlock({
               top: 0,
               left: 0,
               right: 0,
-              height: Math.min(clickThreshold, block.height / 4),
+              height: isFinite(block.height) && block.height > 0
+                ? Math.min(clickThreshold, block.height / 4)
+                : clickThreshold,
               borderRadius: block.type === "circle" ? "50% 50% 0 0" : "0",
               pointerEvents: "auto",
               cursor: "pointer",
@@ -137,7 +139,9 @@ export default function ShapeBlock({
               top: 0,
               right: 0,
               bottom: 0,
-              width: Math.min(clickThreshold, block.width / 4),
+              width: isFinite(block.width) && block.width > 0
+                ? Math.min(clickThreshold, block.width / 4)
+                : clickThreshold,
               pointerEvents: "auto",
               cursor: "pointer",
               zIndex: -1,

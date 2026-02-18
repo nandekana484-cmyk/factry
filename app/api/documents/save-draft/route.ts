@@ -25,8 +25,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // ★★★ テンプレートブロックは保存しない ★★★
-    const userBlocks = blocks.filter((b: any) => b.source === "user");
+    // ★★★ テンプレートブロックも含めて全て保存 ★★★
+    const allBlocks = blocks.map((b: any) => ({
+      ...b,
+      source: b.source === "template" ? "template" : "user"
+    }));
 
     const result = await prisma.$transaction(async (tx) => {
       let document;
@@ -69,9 +72,9 @@ export async function POST(req: Request) {
         });
       }
 
-      // ★★★ 保存するのは userBlocks のみ ★★★
+      // ★★★ テンプレートブロックも含めて全て保存 ★★★
       await tx.documentBlock.createMany({
-        data: userBlocks.map((block: any, index: number) => ({
+        data: allBlocks.map((block: any, index: number) => ({
           document_id: document.id,
           type: block.type || "text",
           content: JSON.stringify(block),

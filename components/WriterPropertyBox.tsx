@@ -99,6 +99,7 @@ export default function WriterPropertyBox({
   const isShapeBlock = ["rect", "circle", "triangle", "arrow", "line"].includes(selectedBlock.type);
   const isTableBlock = selectedBlock.type === "table";
   const isImageBlock = selectedBlock.type === "image";
+  const isTemplateBlock = selectedBlock.source === "template";
 
   return (
     <div
@@ -222,7 +223,7 @@ export default function WriterPropertyBox({
                   })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={selectedBlock.isTemplateBlock}
+                disabled={isTemplateBlock}
               />
             </div>
 
@@ -257,7 +258,7 @@ export default function WriterPropertyBox({
                     })
                   }
                   className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
-                  disabled={selectedBlock.isTemplateBlock}
+                  disabled={isTemplateBlock}
                 />
                 <input
                   type="text"
@@ -268,7 +269,7 @@ export default function WriterPropertyBox({
                     })
                   }
                   className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={selectedBlock.isTemplateBlock}
+                  disabled={isTemplateBlock}
                 />
               </div>
             </div>
@@ -287,7 +288,7 @@ export default function WriterPropertyBox({
                     })
                   }
                   className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
-                  disabled={selectedBlock.isTemplateBlock}
+                  disabled={isTemplateBlock}
                 />
                 <input
                   type="text"
@@ -298,7 +299,7 @@ export default function WriterPropertyBox({
                     })
                   }
                   className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={selectedBlock.isTemplateBlock}
+                  disabled={isTemplateBlock}
                 />
               </div>
             </div>
@@ -316,7 +317,7 @@ export default function WriterPropertyBox({
                   })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={selectedBlock.isTemplateBlock}
+                disabled={isTemplateBlock}
               />
             </div>
           </>
@@ -337,7 +338,7 @@ export default function WriterPropertyBox({
                 })
               }
               className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={selectedBlock.isTemplateBlock}
+              disabled={isTemplateBlock}
             />
           </div>
 
@@ -426,7 +427,7 @@ export default function WriterPropertyBox({
           </div>
         )}
 
-        {selectedBlock.isTemplateBlock && (
+        {isTemplateBlock && (
           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
             ⚠️ テンプレート由来のブロックは移動・サイズ変更できません
           </div>

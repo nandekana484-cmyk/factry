@@ -291,6 +291,7 @@ const useWriterEditor = () => {
   const updateBlock = (id: string, updated: any) => {
     const targetBlock = blocks.find((b) => b.id === id);
     if (!targetBlock) return;
+    if (targetBlock.source === "template") return;
     // タイトルブロック（titlePlaceholder, subtitlePlaceholder）は内容編集のみ許可
     if (
       (targetBlock.type === "titlePlaceholder" || targetBlock.type === "subtitlePlaceholder") &&
@@ -337,9 +338,8 @@ const useWriterEditor = () => {
       return;
     }
     const block = blocks.find((b) => b.id === id);
-    // テンプレート由来（locked:true, source:'template'）かつ editable:false の場合は選択不可
-    if (block && block.locked && block.source === "template" && !block.editable) return;
-    // それ以外は選択可
+    // テンプレート由来（source:'template'）は選択不可
+    if (block && block.source === "template") return;
     if (block) {
       setSelectedBlock(block);
       if (selectedBlock?.id !== id) {
@@ -352,8 +352,8 @@ const useWriterEditor = () => {
     const targetBlock = blocks.find((b) => b.id === id);
     // 削除禁止条件
     if (targetBlock) {
-      // 1. テンプレート由来（locked: true）は削除不可
-      if (targetBlock.locked) {
+      // テンプレート由来（source: 'template'）は削除不可
+      if (targetBlock.source === "template") {
         alert("テンプレート由来のブロックは削除できません。");
         return;
       }
@@ -384,10 +384,6 @@ const useWriterEditor = () => {
 
   // ブロックを一括設定
   const setAllBlocks = (newBlocks: any[]) => {
-    if (readOnly) return;
-    // locked: trueのブロックは上書き不可
-    const hasLocked = newBlocks.some((b) => b.locked);
-    if (hasLocked) return;
     setBlocks(newBlocks);
     setSelectedBlock(null);
     setSelectedCell(null);
@@ -526,6 +522,7 @@ const useWriterEditor = () => {
           b.type === "titlePlaceholder" || b.type === "subtitlePlaceholder"
             ? true
             : false,
+        page: 1,
       }));
       setBlocks(lockedBlocks);
       setPages([{ id: nanoid(), number: 1, blocks: lockedBlocks }]);

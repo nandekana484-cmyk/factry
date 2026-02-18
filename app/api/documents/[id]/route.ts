@@ -37,7 +37,6 @@ export async function GET(
 
     const restoredBlocks = document.blocks.map((block: any) => {
       const parsed = JSON.parse(block.content);
-
       return {
         ...parsed,
         id: block.id,
@@ -47,7 +46,7 @@ export async function GET(
         height: parsed.height ?? block.height,
         locked: false,
         editable: true,
-        source: "user",
+        source: parsed.source || "user",
       };
     });
 

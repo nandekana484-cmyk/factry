@@ -228,8 +228,8 @@ export default function WriterPage() {
           setShowGrid={setShowGrid}
           gridSize={gridSize}
           setGridSize={setGridSize}
-          snapMode={snapMode}
-          setSnapMode={setSnapMode}
+          snapMode={snapMode ? "on" : "off"}
+          setSnapMode={(value: string) => setSnapMode(value === "on")}
           zoom={zoom}
           setZoom={setZoom}
           paper={editor.paper}
@@ -244,6 +244,9 @@ export default function WriterPage() {
           onRedo={editor.redo}
           canUndo={editor.canUndo}
           canRedo={editor.canRedo}
+          pages={editor.pages}
+          onSwitchPage={actions.handleSwitchPage}
+          onDeletePage={actions.handleDeletePage}
           readOnly={false}
         />
 
