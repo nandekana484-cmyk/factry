@@ -19,8 +19,8 @@ interface PaperCanvasProps {
   readOnly?: boolean;
   currentPage?: number;
   snap?: (x: number, y: number) => { x: number; y: number };
+  onDoubleClickBlock?: () => void;
 }
-
 
 const PaperCanvas = React.forwardRef<HTMLDivElement, PaperCanvasProps>(
   (
@@ -38,11 +38,12 @@ const PaperCanvas = React.forwardRef<HTMLDivElement, PaperCanvasProps>(
       readOnly = false,
       currentPage,
       snap,
+      onDoubleClickBlock,
     },
     ref
   ) => {
-    // currentPageでフィルタし、そのページのブロックのみ描画
-    const pageBlocks = blocks.filter((b) => b.page === currentPage);
+    const pageBlocks = blocks.filter((b) => (b.page ?? 1) === currentPage);
+
     return (
       <div
         ref={ref}
@@ -62,7 +63,6 @@ const PaperCanvas = React.forwardRef<HTMLDivElement, PaperCanvasProps>(
           backgroundAttachment: "local",
         }}
       >
-        {/* このページのブロックのみ描画 */}
         {pageBlocks.map((block: any) => {
           const isSelected = selectedBlock?.id === block.id;
           const isTextBlock = ["text", "titlePlaceholder", "subtitlePlaceholder"].includes(block.type);
@@ -80,6 +80,10 @@ const PaperCanvas = React.forwardRef<HTMLDivElement, PaperCanvasProps>(
                 snap={snap}
                 isReadOnly={readOnly || block.locked === true}
                 isTextEditable={block.locked !== true}
+                onDoubleClick={() => {
+                  onSelectBlock(block.id);
+                  onDoubleClickBlock?.();
+                }}
               />
             );
           }
@@ -95,6 +99,10 @@ const PaperCanvas = React.forwardRef<HTMLDivElement, PaperCanvasProps>(
                 snap={snap}
                 isReadOnly={readOnly || block.locked === true}
                 currentPage={currentPage}
+                onDoubleClick={() => {
+                  onSelectBlock(block.id);
+                  onDoubleClickBlock?.();
+                }}
               />
             );
           }
@@ -109,6 +117,10 @@ const PaperCanvas = React.forwardRef<HTMLDivElement, PaperCanvasProps>(
               selectBlock={onSelectBlock}
               snap={snap}
               isReadOnly={readOnly || block.locked === true}
+              onDoubleClick={() => {
+                onSelectBlock(block.id);
+                onDoubleClickBlock?.();
+              }}
             />
           );
         })}

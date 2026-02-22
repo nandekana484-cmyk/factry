@@ -9,7 +9,6 @@ interface WriterSidebarProps {
   onAddPage: () => void;
   onAddBlock: (type: string, role?: string) => void;
   onAddImage?: (imageData: string) => void;
-  // templates: any[]; // テンプレート一覧はTemplateSelectorModalで取得するため不要
   draftDocuments: any[];
   onLoadTemplate: (templateId: string) => void;
   templateRefresh: any;
@@ -20,6 +19,8 @@ interface WriterSidebarProps {
   folders?: any[];
   selectedFolderId?: number | null;
   onSelectFolder?: (folderId: number | null) => void;
+  templates: any[];
+  loadingTemplates: boolean;
 }
 
 /**
@@ -32,7 +33,6 @@ export default function WriterSidebar({
   onAddPage,
   onAddBlock,
   onAddImage,
-  // templates,
   draftDocuments,
   onLoadTemplate,
   templateRefresh,
@@ -43,6 +43,8 @@ export default function WriterSidebar({
   folders = [],
   selectedFolderId,
   onSelectFolder,
+  templates,
+  loadingTemplates,
 }: WriterSidebarProps) {
   return (
     <div
@@ -56,11 +58,14 @@ export default function WriterSidebar({
       data-ignore-deselect="true"
     >
       {/* 最上部: テンプレート選択モーダルボタン */}
+      {/* テンプレート選択は親からpropsで受け取る設計に統一 */}
       <div className="p-4 border-b bg-white">
         <label className="block text-xs font-bold text-gray-700 mb-1">テンプレート選択</label>
         <TemplateSelectorModal
           handleLoadTemplate={onLoadTemplate}
           templateRefresh={templateRefresh}
+          templates={templates}
+          loading={loadingTemplates}
         />
       </div>
 

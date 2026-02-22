@@ -1,7 +1,18 @@
 "use client";
 
-import { useState } from "react";
 import { Rnd } from "react-rnd";
+
+interface TextBlockProps {
+  block: any;
+  isSelected: boolean;
+  selectedBlock: any;
+  updateBlock: (id: string, updates: any) => void;
+  selectBlock: (id: string | null) => void;
+  snap?: (x: number, y: number) => { x: number; y: number };
+  isReadOnly?: boolean;
+  isTextEditable?: boolean;
+  onDoubleClick?: () => void;
+}
 
 export default function TextBlock({
   block,
@@ -12,12 +23,15 @@ export default function TextBlock({
   snap,
   isReadOnly = false,
   isTextEditable = true,
-}: any) {
-  // isReadOnly: ドラッグ・リサイズの可否を制御
-  // isTextEditable: テキスト入力の可否を制御
-  // この2つは完全に独立している
+  onDoubleClick,
+}: TextBlockProps) {
   const canEditText = isTextEditable && block.editable !== false;
   const canMoveResize = !isReadOnly;
+
+  const applySnap = (x: number, y: number) => {
+    if (snap) return snap(x, y);
+    return { x, y };
+  };
 
   return (
     <Rnd
@@ -54,37 +68,33 @@ export default function TextBlock({
         zIndex: block.zIndex || 1500,
         boxSizing: "border-box",
       }}
-      onClick={(e: any) => {
+      onMouseDown={(e: any) => {
         e.stopPropagation();
         selectBlock(block.id);
       }}
       onDragStop={(e, d) => {
         if (isReadOnly) return;
-        // グリッドサイズに完全にスナップ
-        const newX = snap(d.x);
-        const newY = snap(d.y);
-        updateBlock(block.id, { x: newX, y: newY });
+        const snapped = applySnap(d.x, d.y);
+        updateBlock(block.id, { x: snapped.x, y: snapped.y });
       }}
       onResizeStop={(e, dir, ref, delta, pos) => {
         if (isReadOnly) return;
+
         const parsedWidth = parseFloat(ref.style.width) || block.width;
         const parsedHeight = parseFloat(ref.style.height) || block.height;
 
-        // サイズと位置を完全にグリッドスナップ
-        const newWidth = snap(parsedWidth);
-        const newHeight = snap(parsedHeight);
-        const newX = snap(pos.x);
-        const newY = snap(pos.y);
+        const snappedPos = applySnap(pos.x, pos.y);
+        const snappedSize = applySnap(parsedWidth, parsedHeight);
 
         updateBlock(block.id, {
-          width: newWidth,
-          height: newHeight,
-          x: newX,
-          y: newY,
+          width: snappedSize.x,
+          height: snappedSize.y,
+          x: snappedPos.x,
+          y: snappedPos.y,
         });
       }}
     >
-      {/* 編集用枠線ガイド（印刷時は非表示） */}
+      {/* 選択枠 */}
       <div
         className="editor-text-frame"
         style={{
@@ -94,9 +104,9 @@ export default function TextBlock({
           right: 0,
           bottom: 0,
           outline: canMoveResize
-            ? (isSelected 
-              ? "3px solid #4A90E2" 
-              : "1px dashed #cccccc")
+            ? isSelected
+              ? "3px solid #4A90E2"
+              : "1px dashed #cccccc"
             : "none",
           outlineOffset: "0px",
           boxSizing: "border-box",
@@ -105,7 +115,7 @@ export default function TextBlock({
         }}
       />
 
-      {/* ドラッグハンドル（透明） - 編集中は非表示、それ以外で移動可能なときは表示 */}
+      {/* ダブルクリックで編集モードに入る透明レイヤー */}
       {canMoveResize && !block.isEditing && (
         <div
           className="editor-text-handle"
@@ -121,23 +131,18 @@ export default function TextBlock({
             pointerEvents: "auto",
           }}
           onDoubleClick={(e) => {
-            if (canEditText && (block.type === "text" || block.type === "titlePlaceholder" || block.type === "subtitlePlaceholder")) {
-              e.stopPropagation();
-              selectBlock(block.id);
-              updateBlock(block.id, { isEditing: true });
-              setTimeout(() => {
-                const editableDiv = document.querySelector(
-                  `[data-block-id="${block.id}"] [contenteditable]`
-                );
-                if (editableDiv) {
-                  (editableDiv as HTMLElement).focus();
-                }
-              }, 10);
-            }
+            e.stopPropagation();
+            selectBlock(block.id);
+
+            // ★★★ これがないと編集できない
+            updateBlock(block.id, { isEditing: true });
+
+            onDoubleClick?.();
           }}
         />
       )}
 
+      {/* テキスト本体 */}
       <div
         style={{
           width: "100%",
@@ -147,7 +152,6 @@ export default function TextBlock({
           position: "relative",
         }}
       >
-        {/* --- テキスト --- */}
         {block.type === "text" && (
           <div
             contentEditable={canEditText && block.isEditing}
@@ -168,114 +172,22 @@ export default function TextBlock({
               overflowWrap: "break-word",
               padding: "4px",
             }}
+
             onBlur={(e) =>
-              updateBlock(block.id, {
-                label: e.currentTarget.innerText,
-                isEditing: false,
-              })
+            updateBlock(block.id, {
+            label: e.currentTarget.innerText,
+            value: e.currentTarget.innerText,
+            isEditing: false,
+            })
             }
+            
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                // Enterキーの伝播を停止（改行のみ実行）
                 e.stopPropagation();
               }
             }}
           >
-            {block.label}
-          </div>
-        )}
-
-        {/* --- タイトルプレースホルダー --- */}
-        {block.type === "titlePlaceholder" && (
-          <div
-            contentEditable={canEditText && block.isEditing}
-            suppressContentEditableWarning
-            className="w-full h-full"
-            style={{
-              fontSize: `${Math.round(block.fontSize || 20)}px`,
-              fontWeight: block.fontWeight || "bold",
-              fontFamily: block.fontFamily || "sans-serif",
-              textAlign: block.textAlign || "left",
-              color: block.color || "#000000",
-              outline: "none",
-              width: "100%",
-              height: "100%",
-              whiteSpace: "pre-wrap",
-              overflowWrap: "break-word",
-              display: "flex",
-              alignItems: "center",
-              justifyContent:
-                block.textAlign === "center"
-                  ? "center"
-                  : block.textAlign === "right"
-                    ? "flex-end"
-                    : "flex-start",
-              padding: "8px",
-              pointerEvents: canEditText && block.isEditing ? "auto" : "none",
-              cursor: canEditText ? "text" : "default",
-            }}
-            onBlur={(e) => {
-              // 編集終了時に全ページのタイトルを同期
-              updateBlock(block.id, {
-                value: e.currentTarget.innerText,
-                isEditing: false,
-              });
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                // Enterキーの伝播を停止（改行のみ実行）
-                e.stopPropagation();
-              }
-            }}
-          >
-            {block.value || "タイトル"}
-          </div>
-        )}
-
-        {/* --- サブタイトルプレースホルダー --- */}
-        {block.type === "subtitlePlaceholder" && (
-          <div
-            contentEditable={canEditText && block.isEditing}
-            suppressContentEditableWarning
-            className="w-full h-full"
-            style={{
-              fontSize: `${Math.round(block.fontSize || 16)}px`,
-              fontWeight: block.fontWeight || "normal",
-              fontFamily: block.fontFamily || "sans-serif",
-              textAlign: block.textAlign || "left",
-              color: block.color || "#000000",
-              outline: "none",
-              width: "100%",
-              height: "100%",
-              whiteSpace: "pre-wrap",
-              overflowWrap: "break-word",
-              display: "flex",
-              alignItems: "center",
-              justifyContent:
-                block.textAlign === "center"
-                  ? "center"
-                  : block.textAlign === "right"
-                    ? "flex-end"
-                    : "flex-start",
-              padding: "8px",
-              pointerEvents: canEditText && block.isEditing ? "auto" : "none",
-              cursor: canEditText ? "text" : "default",
-            }}
-            onBlur={(e) => {
-              // 編集終了時に全ページのサブタイトルを同期
-              updateBlock(block.id, {
-                value: e.currentTarget.innerText,
-                isEditing: false,
-              });
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                // Enterキーの伝播を停止（改行のみ実行）
-                e.stopPropagation();
-              }
-            }}
-          >
-            {block.value || "サブタイトル"}
+            {block.label ?? block.value ?? ""}
           </div>
         )}
       </div>

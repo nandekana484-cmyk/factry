@@ -3,6 +3,7 @@
 
 import { useState, useCallback } from "react";
 import { nanoid } from "nanoid";
+import { useEffect } from "react";
 
 // =========================
 // 型定義セクション
@@ -99,7 +100,7 @@ const useWriterEditor = () => {
 
   // ブロック追加
   const addBlock = (type: string) => {
-    // 追加ブロックは常に locked: false, editable: true, source: 'user'
+    // 追加ブロックは常に locked: false, editable: true, source: 'user', page: currentPage
     const base = {
       id: nanoid(),
       type,
@@ -112,6 +113,7 @@ const useWriterEditor = () => {
       locked: false,
       editable: true,
       source: "user",
+      page: currentPage,
     };
 
     let block: any = {};
@@ -245,6 +247,7 @@ const useWriterEditor = () => {
       editable: true,
       locked: false,
       source: "user",
+      page: currentPage,
     };
     const newBlocks = [...blocks, block];
     setBlocks(newBlocks);
@@ -279,6 +282,7 @@ const useWriterEditor = () => {
       locked: false,
       source: "user",
       cells: cells,
+      page: currentPage,
     };
 
     const newBlocks = [...blocks, block];
@@ -445,14 +449,7 @@ const useWriterEditor = () => {
   };
 
   const switchPage = (pageNumber: number) => {
-    // 現在のページのブロックを保存
-    setPages((prev) =>
-      prev.map((p) =>
-        p.number === currentPage ? { ...p, blocks: [...blocks] } : p
-      )
-    );
-
-    // 新しいページのブロックを読み込み
+    // ページ切り替えのみ行い、blocks保存はしない
     const targetPage = pages.find((p) => p.number === pageNumber);
     if (targetPage) {
       setCurrentPage(pageNumber);
@@ -524,9 +521,37 @@ const useWriterEditor = () => {
             : false,
         page: 1,
       }));
-      setBlocks(lockedBlocks);
-      setPages([{ id: nanoid(), number: 1, blocks: lockedBlocks }]);
+      // pageが無い場合は必ずpage:1を付与
+      const normalizedBlocks: Block[] = lockedBlocks.map((b: Block) => ({ ...b, page: b.page ?? 1 }));
+      setBlocks(normalizedBlocks);
+      setPages([{ id: nanoid(), number: 1, blocks: normalizedBlocks }]);
       setCurrentPage(1);
+        // ページ削除処理
+        const deletePage = (deletedPage: number) => {
+          // 削除ページのブロックを除外し、残りのpageを詰め直す
+          const filtered = blocks.filter(b => b.page !== deletedPage);
+          const normalized = filtered.map(b => ({
+            ...b,
+            page: b.page > deletedPage ? b.page - 1 : b.page,
+          }));
+          setBlocks(normalized);
+          // pagesも詰め直す
+          setPages(prev => prev
+            .filter(p => p.number !== deletedPage)
+            .map(p => ({
+              ...p,
+              number: p.number > deletedPage ? p.number - 1 : p.number,
+              blocks: p.blocks.filter(b => b.page !== deletedPage).map(b => ({
+                ...b,
+                page: b.page > deletedPage ? b.page - 1 : b.page,
+              })),
+            }))
+          );
+          // currentPageが消えた場合は最後のページへ
+          const maxPage = Math.max(1, ...normalized.map(b => b.page));
+          setCurrentPage(Math.min(currentPage, maxPage));
+        };
+        // 初期ロード時の整合性チェック（Hooks禁止領域なので削除）
       setSelectedBlock(null);
       setSelectedCell(null);
       setPaper(parsed.paper || "A4");

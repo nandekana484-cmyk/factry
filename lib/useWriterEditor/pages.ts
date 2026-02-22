@@ -39,7 +39,6 @@ export function usePageActions(state: any) {
 
   // ページ切り替え
   const switchPage = (pageNumber: number) => {
-    setPages((prev: Page[]) => prev.map((p: Page) => p.number === currentPage ? { ...p, blocks: [...blocks] } : p));
     const targetPage = pages.find((p: Page) => p.number === pageNumber);
     if (targetPage) {
       setCurrentPage(pageNumber);

@@ -14,6 +14,8 @@ interface FolderSelectModalProps {
   onClose: () => void;
   onSelectFolder: (folder: Folder | null) => void;
   selectedFolderId?: number | null;
+  folders: Folder[];
+  isLoading: boolean;
 }
 
 export default function FolderSelectModal({
@@ -21,34 +23,23 @@ export default function FolderSelectModal({
   onClose,
   onSelectFolder,
   selectedFolderId,
+  folders,
+  isLoading,
 }: FolderSelectModalProps) {
-  const [folders, setFolders] = useState<Folder[]>([]);
+  // 外部状態でfolders, selectedFolderIdを受け取る設計に統一
+  // 内部状態は選択中IDのみ
   const [selected, setSelected] = useState<number | null>(selectedFolderId || null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchFolders();
-    }
-  }, [isOpen]);
+    setSelected(selectedFolderId || null);
+  }, [selectedFolderId]);
 
-  const fetchFolders = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/folders");
-      if (response.ok) {
-        const data = await response.json();
-        setFolders(data.folders || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch folders:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // foldersは親からpropsで受け取る前提（API取得は親で行う）
+  // isLoadingも親で管理する設計に統一
 
   const handleSelect = () => {
-    const folder = folders.find((f) => f.id === selected) || null;
+    // Folder|null型で渡す
+    const folder = selected === null ? null : folders.find(f => f.id === selected) || null;
     onSelectFolder(folder);
     onClose();
   };

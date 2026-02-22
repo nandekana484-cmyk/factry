@@ -3,53 +3,24 @@ import React, { useState, useEffect } from "react";
 interface TemplateSelectorModalProps {
   handleLoadTemplate: (templateId: string) => void;
   templateRefresh: any;
+  templates: any[];
+  loading: boolean;
 }
 
-const TemplateSelectorModal: React.FC<TemplateSelectorModalProps> = ({ handleLoadTemplate, templateRefresh }) => {
+const TemplateSelectorModal: React.FC<TemplateSelectorModalProps> = ({ handleLoadTemplate, templateRefresh, templates, loading }) => {
+  // 外部状態props受け取り設計に統一（テンプレート一覧・ローディング状態は親で管理）
   const [isTemplateListOpen, setIsTemplateListOpen] = useState(false);
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!isTemplateListOpen) return;
-    setLoading(true);
-    fetch("/api/templates", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("/api/templates response", data);
-        if (data.ok) {
-          setTemplates(data.templates || []);
-        } else {
-          setTemplates([]);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [isTemplateListOpen, templateRefresh]);
+  // templates, loadingは親からpropsで受け取る前提
+  // useEffectは不要
 
   const formatDate = (ts: number) => {
     const d = new Date(ts);
     return d.toLocaleString();
   };
 
+  // handleSelectはidのみ親に渡す
   const handleSelect = (id: string) => {
-    console.log("handleSelect called with id:", id);
-    const selected = templates.find((t) => t.id === id);
-    if (selected) {
-      const templateForEditor = {
-        ...selected,
-        blocks: selected.content,
-      };
-      delete templateForEditor.content;
-      const stored = JSON.parse(localStorage.getItem("templates") || "[]");
-      const idx = stored.findIndex((t: any) => t.id === id);
-      if (idx !== -1) {
-        stored[idx] = templateForEditor;
-      } else {
-        stored.push(templateForEditor);
-      }
-      localStorage.setItem("templates", JSON.stringify(stored));
-    }
-    console.log("calling handleLoadTemplate with id:", id);
     handleLoadTemplate(id);
     setIsTemplateListOpen(false);
   };
@@ -82,7 +53,7 @@ const TemplateSelectorModal: React.FC<TemplateSelectorModalProps> = ({ handleLoa
                 {templates.length === 0 && (
                   <li className="text-gray-500 py-4 text-center">テンプレートがありません</li>
                 )}
-                {templates.map((template) => (
+                {templates.map((template: any) => (
                   <li
                     key={template.id}
                     className="flex justify-between items-center px-2 py-2 hover:bg-blue-50 cursor-pointer rounded"

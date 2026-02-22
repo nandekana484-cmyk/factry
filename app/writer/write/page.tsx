@@ -213,6 +213,8 @@ export default function WriterPage() {
           folders={folders}
           selectedFolderId={selectedFolderId}
           onSelectFolder={setSelectedFolderId}
+          templates={templates}
+          loadingTemplates={false}
         />
       </div>
 
@@ -235,8 +237,6 @@ export default function WriterPage() {
           paper={editor.paper}
           orientation={editor.orientation}
           currentPage={editor.currentPage}
-          showPropertyBox={showPropertyBox}
-          setShowPropertyBox={setShowPropertyBox}
           onSaveDraft={actions.handleSaveDraft}
           onOverwriteDraft={actions.handleOverwriteDraft}
           currentDocumentId={editor.currentDocumentId}
@@ -247,6 +247,8 @@ export default function WriterPage() {
           pages={editor.pages}
           onSwitchPage={actions.handleSwitchPage}
           onDeletePage={actions.handleDeletePage}
+          showPropertyBox={showPropertyBox}
+          setShowPropertyBox={setShowPropertyBox}
           readOnly={false}
         />
 
@@ -296,7 +298,8 @@ export default function WriterPage() {
         }}
       />
 
-      {/* プロパティボックス */}
+      {/* プロパティボックス（FloatingPropertyBox に一本化したため無効化） */}
+      {/*
       {showPropertyBox && (
         <WriterPropertyBox
           selectedBlock={editor.selectedBlock}
@@ -304,6 +307,8 @@ export default function WriterPage() {
           onClose={() => setShowPropertyBox(false)}
         />
       )}
+      */}
+
     </div>
   );
 }

@@ -8,6 +8,7 @@ interface ScaledCanvasProps {
 }
 
 export default function ScaledCanvas({ children, zoom }: ScaledCanvasProps) {
+  // WriterCanvasのzoomスケールのみ
   return (
     <div
       style={{

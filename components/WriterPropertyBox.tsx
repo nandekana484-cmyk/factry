@@ -331,7 +331,11 @@ export default function WriterPropertyBox({
             </label>
             <input
               type="number"
-              value={Math.round(selectedBlock.x || 0)}
+              value={
+                selectedBlock.x === undefined || selectedBlock.x === null || isNaN(selectedBlock.x)
+                  ? ""
+                  : Math.round(selectedBlock.x)
+              }
               onChange={(e) =>
                 onUpdateBlock(selectedBlock.id, {
                   x: Number(e.target.value),
