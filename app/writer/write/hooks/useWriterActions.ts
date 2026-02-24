@@ -45,6 +45,10 @@ export const useWriterActions = (
 
   const handleSaveDraft = useCallback(async () => {
     console.log("[handleSaveDraft] 下書き保存を開始");
+    console.log("[handleSaveDraft] editor.blocks.length:", editor.blocks?.length || 0);
+    console.log("[handleSaveDraft] documentTypeId:", documentTypeId);
+    console.log("[handleSaveDraft] folderId:", folderId);
+    
     // titlePlaceholderからタイトルを自動抽出
     const autoTitle = extractTitleFromBlocks(editor.blocks);
     
@@ -53,28 +57,46 @@ export const useWriterActions = (
     
     if (userTitle === null) {
       // キャンセルされた
+      console.log("[handleSaveDraft] ユーザーがキャンセルしました");
       return;
     }
     
     const finalTitle = userTitle.trim() || autoTitle;
     
+    console.log("[handleSaveDraft] 保存タイトル:", finalTitle);
+    
     setIsSaving(true);
     try {
+      const payload = {
+        title: finalTitle,
+        blocks: editor.blocks,
+        documentTypeId: documentTypeId,
+        folderId: folderId,
+      };
+      
+      console.log("[handleSaveDraft] 送信データ:", {
+        title: payload.title,
+        blocksCount: payload.blocks?.length || 0,
+        documentTypeId: payload.documentTypeId,
+        folderId: payload.folderId,
+      });
+      
       // 下書き保存専用APIを使用
       const response = await fetch("/api/documents/save-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: finalTitle,
-          blocks: editor.blocks,
-          documentTypeId: documentTypeId,
-          folderId: folderId,
-        }),
+        body: JSON.stringify(payload),
+        credentials: "include",
       });
+
+      console.log("[handleSaveDraft] レスポンスステータス:", response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("下書き保存失敗:", response.status, errorData);
+        console.error("[handleSaveDraft] 下書き保存失敗:", {
+          status: response.status,
+          error: errorData,
+        });
         
         // 認証エラーの場合はログインページにリダイレクト
         if (response.status === 401) {
@@ -83,10 +105,14 @@ export const useWriterActions = (
           return;
         }
         
-        throw new Error(errorData.error || "Failed to save draft");
+        const errorMessage = errorData.error || `HTTPエラー ${response.status}`;
+        throw new Error(errorMessage);
       }
 
-      const { documentId } = await response.json();
+      const result = await response.json();
+      console.log("[handleSaveDraft] 保存成功:", result);
+      
+      const { documentId } = result;
       
       // currentDocumentIdを更新（上書き保存用）
       editor.setCurrentDocumentId(documentId);
@@ -95,7 +121,7 @@ export const useWriterActions = (
       setIsSaving(false);
       alert(`下書きを保存しました: ${finalTitle}`);
     } catch (error: any) {
-      console.error("下書き保存エラー:", error);
+      console.error("[handleSaveDraft] 下書き保存エラー:", error);
       alert(`下書きの保存に失敗しました: ${error.message || error}`);
       setIsSaving(false);
     }
@@ -103,6 +129,8 @@ export const useWriterActions = (
 
   const handleOverwriteDraft = useCallback(async () => {
     console.log("[handleOverwriteDraft] 上書き保存を開始");
+    console.log("[handleOverwriteDraft] currentDocumentId:", editor.currentDocumentId);
+    
     if (!editor.currentDocumentId) {
       // IDがない場合は名前を付けて保存
       console.log("[handleOverwriteDraft] documentIdがないため、handleSaveDraftを呼び出します");
@@ -113,24 +141,43 @@ export const useWriterActions = (
     // titlePlaceholderからタイトルを自動抽出
     const autoTitle = extractTitleFromBlocks(editor.blocks);
     
+    console.log("[handleOverwriteDraft] 保存タイトル:", autoTitle);
+    console.log("[handleOverwriteDraft] ブロック数:", editor.blocks?.length || 0);
+    
     setIsSaving(true);
     try {
+      const payload = {
+        title: autoTitle,
+        blocks: editor.blocks,
+        documentId: editor.currentDocumentId,
+        documentTypeId: documentTypeId,
+        folderId: folderId,
+      };
+      
+      console.log("[handleOverwriteDraft] 送信データ:", {
+        title: payload.title,
+        blocksCount: payload.blocks?.length || 0,
+        documentId: payload.documentId,
+        documentTypeId: payload.documentTypeId,
+        folderId: payload.folderId,
+      });
+      
       // 下書き保存専用APIで上書き保存
       const response = await fetch("/api/documents/save-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: autoTitle,
-          blocks: editor.blocks,
-          documentId: editor.currentDocumentId,
-          documentTypeId: documentTypeId,
-          folderId: folderId,
-        }),
+        body: JSON.stringify(payload),
+        credentials: "include",
       });
+
+      console.log("[handleOverwriteDraft] レスポンスステータス:", response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("上書き保存失敗:", response.status, errorData);
+        console.error("[handleOverwriteDraft] 上書き保存失敗:", {
+          status: response.status,
+          error: errorData,
+        });
         
         // 認証エラーの場合はログインページにリダイレクト
         if (response.status === 401) {
@@ -139,14 +186,18 @@ export const useWriterActions = (
           return;
         }
         
-        throw new Error(errorData.error || "Failed to overwrite draft");
+        const errorMessage = errorData.error || `HTTPエラー ${response.status}`;
+        throw new Error(errorMessage);
       }
+
+      const result = await response.json();
+      console.log("[handleOverwriteDraft] 上書き保存成功:", result);
 
       setIsDirty(false);
       setIsSaving(false);
       alert(`下書きを上書き保存しました: ${autoTitle}`);
     } catch (error: any) {
-      console.error("上書き保存エラー:", error);
+      console.error("[handleOverwriteDraft] 上書き保存エラー:", error);
       alert(`上書き保存に失敗しました: ${error.message || error}`);
       setIsSaving(false);
     }
@@ -164,22 +215,38 @@ export const useWriterActions = (
     
     setIsSaving(true);
     try {
+      const payload = {
+        title: autoTitle,
+        blocks: editor.blocks,
+        documentId: editor.currentDocumentId || undefined,
+        documentTypeId: documentTypeId,
+        folderId: folderId,
+      };
+      
+      console.log("[handleSubmitDocument] 下書き保存データ:", {
+        title: payload.title,
+        blocksCount: payload.blocks?.length || 0,
+        documentId: payload.documentId,
+        documentTypeId: payload.documentTypeId,
+        folderId: payload.folderId,
+      });
+      
       // 1. まず下書きとして保存
       const saveDraftResponse = await fetch("/api/documents/save-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: autoTitle,
-          blocks: editor.blocks,
-          documentId: editor.currentDocumentId || undefined,
-          documentTypeId: documentTypeId,
-          folderId: folderId,
-        }),
+        body: JSON.stringify(payload),
+        credentials: "include",
       });
+
+      console.log("[handleSubmitDocument] 下書き保存レスポンス:", saveDraftResponse.status);
 
       if (!saveDraftResponse.ok) {
         const errorData = await saveDraftResponse.json().catch(() => ({}));
-        console.error("文書保存失敗:", saveDraftResponse.status, errorData);
+        console.error("[handleSubmitDocument] 文書保存失敗:", {
+          status: saveDraftResponse.status,
+          error: errorData,
+        });
         
         // 認証エラーの場合はログインページにリダイレクト
         if (saveDraftResponse.status === 401) {
@@ -188,12 +255,15 @@ export const useWriterActions = (
           return;
         }
         
-        throw new Error(errorData.error || "Failed to save document");
+        const errorMessage = errorData.error || `HTTPエラー ${saveDraftResponse.status}`;
+        throw new Error(errorMessage);
       }
 
       const { documentId } = await saveDraftResponse.json();
+      console.log("[handleSubmitDocument] 保存成功、documentId:", documentId);
 
       // 2. 承認申請（submit API を呼び出し）
+      console.log("[handleSubmitDocument] 承認申請を開始");
       const submitResponse = await fetch("/api/documents/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -203,11 +273,17 @@ export const useWriterActions = (
           approverId: approverId,
           comment: `文書を提出しました: ${autoTitle}`,
         }),
+        credentials: "include",
       });
+
+      console.log("[handleSubmitDocument] 承認申請レスポンス:", submitResponse.status);
 
       if (!submitResponse.ok) {
         const errorData = await submitResponse.json().catch(() => ({}));
-        console.error("提出失敗:", submitResponse.status, errorData);
+        console.error("[handleSubmitDocument] 承認申請失敗:", {
+          status: submitResponse.status,
+          error: errorData,
+        });
         
         // 認証エラーの場合はログインページにリダイレクト
         if (submitResponse.status === 401) {
@@ -216,10 +292,12 @@ export const useWriterActions = (
           return;
         }
         
-        throw new Error(errorData.error || "Failed to submit document");
+        const errorMessage = errorData.error || `HTTPエラー ${submitResponse.status}`;
+        throw new Error(errorMessage);
       }
 
       const result = await submitResponse.json();
+      console.log("[handleSubmitDocument] 提出成功:", result);
       
       setIsDirty(false);
       setIsSaving(false);
@@ -232,7 +310,7 @@ export const useWriterActions = (
       alert(message);
       router.push("/dashboard/documents");
     } catch (error: any) {
-      console.error("提出エラー:", error);
+      console.error("[handleSubmitDocument] 提出エラー:", error);
       alert(`ドキュメントの提出に失敗しました: ${error.message || error}`);
       setIsSaving(false);
     }

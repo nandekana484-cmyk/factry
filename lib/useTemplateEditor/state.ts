@@ -13,6 +13,10 @@ export function useTemplateEditorState() {
   const [history, setHistory] = useState<Page[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isUndoRedoing, setIsUndoRedoing] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
+  const [zoom, setZoom] = useState(1);
+  const [gridSize, setGridSize] = useState(20);
+  const [snapMode, setSnapMode] = useState(true);
   return {
     pages, setPages,
     currentPage, setCurrentPage,
@@ -25,5 +29,9 @@ export function useTemplateEditorState() {
     history, setHistory,
     historyIndex, setHistoryIndex,
     isUndoRedoing, setIsUndoRedoing,
+    showGrid, setShowGrid,
+    zoom, setZoom,
+    gridSize, setGridSize,
+    snapMode, setSnapMode,
   };
 }

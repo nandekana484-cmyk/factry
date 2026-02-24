@@ -8,6 +8,8 @@ import { generateManagementNumber } from "@/lib/documentNumber";
 // 文書一覧取得
 export async function GET(req: Request) {
   try {
+    const user = await requireAuth();
+    
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status"); // draft, pending, approved
     const creatorId = searchParams.get("creatorId");
@@ -16,11 +18,41 @@ export async function GET(req: Request) {
 
     const where: any = {};
 
-    if (status) {
+    // ステータス別の権限フィルタリング
+    if (status === "checking") {
+      // 確認待ち：確認者のみ表示
+      where.status = "checking";
+      where.approvalRequest = {
+        checker_id: user.id,
+      };
+    } else if (status === "pending") {
+      // 承認待ち：承認者のみ表示
+      where.status = "pending";
+      where.approvalRequest = {
+        approver_id: user.id,
+      };
+    } else if (status === "draft") {
+      // 下書き：作成者のみ表示
+      where.status = "draft";
+      where.creator_id = user.id;
+    } else if (status === "approved") {
+      // 承認済み：全員が見られる（フォルダ権限で制御）
+      where.status = "approved";
+    } else if (status) {
       where.status = status;
     }
 
-    if (creatorId) {
+    // adminは全て見られる（ただしステータスフィルタは適用）
+    if (user.role !== "admin" && !status) {
+      // ステータス指定なしの場合は、自分が関係する文書のみ
+      where.OR = [
+        { creator_id: user.id },
+        { approvalRequest: { checker_id: user.id } },
+        { approvalRequest: { approver_id: user.id } },
+      ];
+    }
+
+    if (creatorId && user.role === "admin") {
       where.creator_id = parseInt(creatorId);
     }
 
@@ -108,10 +140,18 @@ export async function GET(req: Request) {
         updatedAt: doc.updated_at,
       })),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get documents error:", error);
+    
+    if (error.message === "Unauthorized") {
+      return NextResponse.json(
+        { ok: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to get documents" },
+      { ok: false, error: "Failed to get documents" },
       { status: 500 }
     );
   }

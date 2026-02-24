@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import TemplateList from "@/components/TemplateList";
 import PropertyEditor from "@/components/PropertyEditor";
 import TemplateSelectorModal from "@/components/TemplateSelectorModal";
@@ -26,6 +26,34 @@ export default function RightSidebar({
   onDeleteTemplate,
 }: RightSidebarProps) {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  // テンプレート一覧を取得
+  useEffect(() => {
+    if (showTemplateModal) {
+      loadTemplates();
+    }
+  }, [showTemplateModal, templateRefresh]);
+
+  async function loadTemplates() {
+    setLoadingTemplates(true);
+    try {
+      const res = await fetch("/api/templates", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setTemplates(data.templates || []);
+      } else {
+        console.error("Failed to load templates:", res.status);
+        setTemplates([]);
+      }
+    } catch (error) {
+      console.error("Failed to load templates:", error);
+      setTemplates([]);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  }
   return (
     <div 
       className="border-l flex flex-col"
@@ -65,6 +93,8 @@ export default function RightSidebar({
                 setShowTemplateModal(false);
               }}
               templateRefresh={templateRefresh}
+              templates={templates}
+              loading={loadingTemplates}
             />
           </div>
         </div>

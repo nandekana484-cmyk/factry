@@ -21,6 +21,11 @@ export function useTemplateActions(state: any) {
       }
       const parsed = template.content;
       const blocks: Block[] = (parsed.blocks || []).map((b: any) => ({
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 80,
+        rotate: 0,
         ...b,
         locked: false,
         editable: true,

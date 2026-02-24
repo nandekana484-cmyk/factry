@@ -54,11 +54,13 @@ export async function GET(
       orderBy: { approved_at: "desc" },
     });
     // sequence/revisionはdocumentから取得
-    const managementNumber = generateManagementNumber(
-      documentWithFolder.folder,
-      documentWithFolder.sequence,
-      documentWithFolder.revision
-    );
+    const managementNumber = documentWithFolder.folder && documentWithFolder.sequence != null && documentWithFolder.revision != null
+      ? generateManagementNumber(
+          documentWithFolder.folder,
+          documentWithFolder.sequence,
+          documentWithFolder.revision
+        )
+      : null;
     const revisionsWithUsers = (revisions as any[]).map((rev: any) => ({
       id: rev.id,
       managementNumber,

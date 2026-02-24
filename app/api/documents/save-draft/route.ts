@@ -18,14 +18,15 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!blocks || !Array.isArray(blocks) || blocks.length === 0) {
+    if (!blocks || !Array.isArray(blocks)) {
       return NextResponse.json(
-        { error: "Blocks is required and must be a non-empty array" },
+        { error: "Blocks must be an array" },
         { status: 400 }
       );
     }
 
     // ★★★ テンプレートブロックも含めて全て保存 ★★★
+    // 空配列の場合もOK（下書きは空でも保存可能）
     const allBlocks = blocks.map((b: any) => ({
       ...b,
       source: b.source === "template" ? "template" : "user"
@@ -67,24 +68,28 @@ export async function POST(req: Request) {
             creator_id: user.id,
             folder_id: folderId || null,
             document_type_id: documentTypeId || null,
-            sequence: 1,
+            // folder_idがnullの場合はsequenceもnull（ユニーク制約のため）
+            sequence: folderId ? 1 : null,
           },
         });
       }
 
       // ★★★ テンプレートブロックも含めて全て保存 ★★★
-      await tx.documentBlock.createMany({
-        data: allBlocks.map((block: any, index: number) => ({
-          document_id: document.id,
-          type: block.type || "text",
-          content: JSON.stringify(block),
-          position_x: block.x || 0,
-          position_y: block.y || 0,
-          width: block.width || 100,
-          height: block.height || 100,
-          sort_order: index,
-        })),
-      });
+      // ブロックが存在する場合のみ保存
+      if (allBlocks.length > 0) {
+        await tx.documentBlock.createMany({
+          data: allBlocks.map((block: any, index: number) => ({
+            document_id: document.id,
+            type: block.type || "text",
+            content: JSON.stringify(block),
+            position_x: block.x || 0,
+            position_y: block.y || 0,
+            width: block.width || 100,
+            height: block.height || 100,
+            sort_order: index,
+          })),
+        });
+      }
 
       return document;
     });

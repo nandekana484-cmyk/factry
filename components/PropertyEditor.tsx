@@ -150,13 +150,13 @@ export default function PropertyEditor({
           <div className="flex">
             <input
               type="number"
-              value={Math.round(block.x)}
+              value={Math.round(block.x ?? 0)}
               onChange={(e) => handleChange("x", Number(e.target.value))}
               className="w-full border rounded text-sm"
             />
             <input
               type="number"
-              value={Math.round(block.y)}
+              value={Math.round(block.y ?? 0)}
               onChange={(e) => handleChange("y", Number(e.target.value))}
               className="w-full border rounded text-sm"
             />
@@ -169,13 +169,13 @@ export default function PropertyEditor({
           <div className="flex">
             <input
               type="number"
-              value={Math.round(block.width)}
+              value={Math.round(block.width ?? 0)}
               onChange={(e) => handleChange("width", Number(e.target.value))}
               className="w-full border rounded text-sm"
             />
             <input
               type="number"
-              value={Math.round(block.height)}
+              value={Math.round(block.height ?? 0)}
               onChange={(e) => handleChange("height", Number(e.target.value))}
               className="w-full border rounded text-sm"
             />

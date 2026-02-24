@@ -20,19 +20,32 @@ export async function GET(
   try {
     const user = await requireAuth();
 
-    // ★★★ admin は全件読める、それ以外は creator のみ ★★★
-    const where =
-      user.role === "admin"
-        ? { id: documentId }
-        : { id: documentId, creator_id: user.id };
-
-    const document = await prisma.document.findFirst({
-      where,
-      include: { blocks: true },
+    const document = await prisma.document.findUnique({
+      where: { id: documentId },
+      include: { 
+        blocks: true,
+        approvalRequest: true,
+      },
     });
 
     if (!document) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    // 権限チェック：以下のいずれかの場合は閲覧可能
+    // 1. adminユーザー
+    // 2. 文書の作成者
+    // 3. 確認者（checker）
+    // 4. 承認者（approver）
+    const isCreator = document.creator_id === user.id;
+    const isChecker = document.approvalRequest?.checker_id === user.id;
+    const isApprover = document.approvalRequest?.approver_id === user.id;
+    const isAdmin = user.role === "admin";
+
+    if (!isAdmin && !isCreator && !isChecker && !isApprover) {
+      return NextResponse.json({ 
+        error: "You do not have permission to view this document" 
+      }, { status: 403 });
     }
 
     const restoredBlocks = document.blocks.map((block: any) => {
@@ -59,17 +72,30 @@ export async function GET(
     ];
 
     return NextResponse.json({
+      ok: true,
       document: {
         id: document.id,
         title: document.title,
+        status: document.status,
+        managementNumber: document.management_number,
+        creator: {
+          id: document.creator_id,
+        },
         pages,
+        blocks: restoredBlocks,
+        approvalRequest: document.approvalRequest,
         createdAt: document.created_at,
         updatedAt: document.updated_at,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get document error:", error);
-    return NextResponse.json({ error: "Failed to get document" }, { status: 500 });
+    
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    
+    return NextResponse.json({ ok: false, error: "Failed to get document" }, { status: 500 });
   }
 }
 

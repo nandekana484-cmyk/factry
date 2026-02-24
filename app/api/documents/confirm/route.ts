@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { requireAuth } from "@/lib/auth";
 
 const prisma = new PrismaClient();
 
@@ -11,12 +12,7 @@ const prisma = new PrismaClient();
 export async function POST(request: NextRequest) {
   try {
     // 認証チェック
-    const userCookie = request.cookies.get("user");
-    if (!userCookie) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = JSON.parse(userCookie.value);
+    const user = await requireAuth();
 
     const body = await request.json();
     const { documentId, comment } = body;

@@ -76,11 +76,24 @@ export default function DocumentDetailPage() {
     try {
       const res = await fetch(`/api/documents/${documentId}`);
       const data = await res.json();
-      if (data.ok) {
+      
+      console.log("[DocumentDetail] API Response:", { status: res.status, data });
+      
+      if (data.ok && data.document) {
         setDocument(data.document);
+      } else {
+        console.error("[DocumentDetail] Failed to fetch document:", data);
+        if (res.status === 403) {
+          alert("この文書を表示する権限がありません");
+          router.back();
+        } else if (res.status === 404) {
+          alert("文書が見つかりませんでした");
+          router.back();
+        }
       }
     } catch (error) {
-      console.error("Failed to fetch document:", error);
+      console.error("[DocumentDetail] Fetch error:", error);
+      alert("文書の取得に失敗しました");
     } finally {
       setLoading(false);
     }

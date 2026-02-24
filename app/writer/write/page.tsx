@@ -27,6 +27,7 @@ export default function WriterPage() {
   // テンプレート一覧再取得用
   const [templateRefresh, setTemplateRefresh] = useState(0);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [draftDocuments, setDraftDocuments] = useState<any[]>([]);
   const [showFolderSelect, setShowFolderSelect] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<any>(null);
@@ -63,9 +64,6 @@ export default function WriterPage() {
 
   // クライアント側でのみlocalStorageからデータを読み込む
   useEffect(() => {
-    const loadedTemplates = JSON.parse(localStorage.getItem("templates") || "[]");
-    setTemplates(loadedTemplates);
-
     const documents = JSON.parse(localStorage.getItem("documents") || "[]");
     const drafts = documents.filter((doc: any) => doc.status === "draft");
     setDraftDocuments(drafts);
@@ -98,6 +96,29 @@ export default function WriterPage() {
     };
     fetchFolders();
   }, []);
+
+  // テンプレート一覧をAPIから取得
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      setLoadingTemplates(true);
+      try {
+        const response = await fetch("/api/templates", { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          setTemplates(data.templates || []);
+        } else {
+          console.error("Failed to fetch templates:", response.status);
+          setTemplates([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch templates:", error);
+        setTemplates([]);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+    fetchTemplates();
+  }, [templateRefresh]);
 
   // URLパラメータからdocumentIdを取得して文書を読み込む
   const documentId = searchParams.get("documentId");
@@ -214,7 +235,7 @@ export default function WriterPage() {
           selectedFolderId={selectedFolderId}
           onSelectFolder={setSelectedFolderId}
           templates={templates}
-          loadingTemplates={false}
+          loadingTemplates={loadingTemplates}
         />
       </div>
 
