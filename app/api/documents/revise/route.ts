@@ -47,25 +47,19 @@ export async function POST(req: Request) {
       }
 
       // 承認済みの改定をカウント（approved_at が null でないもののみ）
-      // これにより、改定開始したが未承認のレコードは除外される
       const approvedRevisions = (document as any).revisionHistories.filter(
         (r: any) => r.approved_at !== null
       );
 
       if (reviseType === "minor") {
         // 軽微修正（承認不要）
-        // minorのカウント（M1, M2...）
-        // 軽微修正は承認済みのものだけをカウント
         const minorRevisions = approvedRevisions.filter(
           (r: any) => r.revision_symbol && r.revision_symbol.startsWith("M")
         );
         const minorCount = minorRevisions.length + 1;
         const minorSymbol = `M${minorCount}`;
 
-        // statusはapprovedのまま
-        // 管理番号も変更なし
-        
-        // RevisionHistoryに軽微修正として記録
+        // RevisionHistory に軽微修正として記録
         await tx.revisionHistory.create({
           data: {
             document_id: documentId,
@@ -75,7 +69,7 @@ export async function POST(req: Request) {
             created_by_id: document.creator_id,
             approved_by_id: null, // 承認不要
             checked_by_id: null,  // 確認不要
-            approved_at: new Date(), // 軽微修正は即座に「承認」扱い
+            approved_at: new Date(),   // 軽微修正は即承認扱い
           },
         });
 
@@ -85,14 +79,16 @@ export async function POST(req: Request) {
             document_id: documentId,
             user_id: user.id,
             action: "revised",
-            comment: comment ? `${comment} (${minorSymbol} - 軽微修正)` : `軽微修正 (${minorSymbol})`,
+            comment: comment
+              ? `${comment} (${minorSymbol} - 軽微修正)`
+              : `軽微修正 (${minorSymbol})`,
           },
         });
 
-        return { 
-          status: "approved", 
+        return {
+          status: "approved",
           revisionSymbol: minorSymbol,
-          reviseType: "minor"
+          reviseType: "minor",
         };
       } else {
         // major: 正式改定（承認が必要）
@@ -110,25 +106,26 @@ export async function POST(req: Request) {
             document_id: documentId,
             user_id: user.id,
             action: "revised",
-            comment: comment ? `${comment} (${newRevisionSymbol})` : `改定開始 (${newRevisionSymbol})`,
+            comment: comment
+              ? `${comment} (${newRevisionSymbol})`
+              : `改定開始 (${newRevisionSymbol})`,
           },
         });
 
-        // Note: RevisionHistory は承認時にのみ作成される
-
-        return { 
-          status: "draft", 
+        // RevisionHistory は承認時に作成される
+        return {
+          status: "draft",
           revisionSymbol: newRevisionSymbol,
-          reviseType: "major"
+          reviseType: "major",
         };
       }
     });
 
-    return NextResponse.json({ 
-      ok: true, 
-      status: result.status, 
+    return NextResponse.json({
+      ok: true,
+      status: result.status,
       revisionSymbol: result.revisionSymbol,
-      reviseType: result.reviseType
+      reviseType: result.reviseType,
     });
   } catch (error: any) {
     console.error("Revise document error:", error);

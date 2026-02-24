@@ -16,6 +16,8 @@ async function main() {
     where: { email: 'writer@example.com' },
     update: {},
     create: {
+      last_name: '作成',
+      first_name: '者',
       name: '作成者',
       email: 'writer@example.com',
       password: creatorPassword,
@@ -27,6 +29,8 @@ async function main() {
     where: { email: 'checker@example.com' },
     update: {},
     create: {
+      last_name: '確認',
+      first_name: '者',
       name: '確認者',
       email: 'checker@example.com',
       password: checkerPassword,
@@ -38,6 +42,8 @@ async function main() {
     where: { email: 'approver@example.com' },
     update: {},
     create: {
+      last_name: '承認',
+      first_name: '者',
       name: '承認者',
       email: 'approver@example.com',
       password: approverPassword,
@@ -49,6 +55,8 @@ async function main() {
     where: { email: 'admin@example.com' },
     update: {},
     create: {
+      last_name: '管理',
+      first_name: '者',
       name: 'Admin User',
       email: 'admin@example.com',
       password: adminPassword,
@@ -56,7 +64,7 @@ async function main() {
     },
   });
 
-  console.log('Users created:', { writer, approver, admin });
+  console.log('Users created:', { creator, approver, admin });
 
   // フォルダを作成
   const wiFolder = await prisma.folder.create({
@@ -105,7 +113,7 @@ async function main() {
     data: {
       title: '下書き文書のサンプル',
       status: 'draft',
-      creator_id: writer.id,
+      creator_id: creator.id,
       folder_id: wiFolder.id,
       sequence: 1,
       revision: 0,
@@ -152,7 +160,7 @@ async function main() {
     data: {
       title: '確認中文書のサンプル',
       status: 'checking',
-      creator_id: writer.id,
+      creator_id: creator.id,
       folder_id: wiFolder.id,
       sequence: 2,
       revision: 0,
@@ -194,7 +202,7 @@ async function main() {
       },
       approvalRequest: {
         create: {
-          requester_id: writer.id,
+          requester_id: creator.id,
           checker_id: approver.id,
           approver_id: approver.id,
           comment: '確認をお願いします',
@@ -202,7 +210,7 @@ async function main() {
       },
       approvalHistories: {
         create: {
-          user_id: writer.id,
+          user_id: creator.id,
           action: 'submitted',
           comment: '確認をお願いします',
         },
@@ -214,7 +222,7 @@ async function main() {
     data: {
       title: '承認済み文書のサンプル',
       status: 'approved',
-      creator_id: writer.id,
+      creator_id: creator.id,
       folder_id: wiFolder.id,
       sequence: 3,
       revision: 0,
@@ -257,7 +265,7 @@ async function main() {
       approvalHistories: {
         create: [
           {
-            user_id: writer.id,
+            user_id: creator.id,
             action: 'submitted',
             comment: '確認をお願いします',
           },
@@ -285,7 +293,7 @@ async function main() {
       title: approvedDoc.title,
       approved_by_id: approver.id,
       checked_by_id: approver.id,
-      created_by_id: writer.id,
+      created_by_id: creator.id,
       approved_at: new Date(),
     },
   });

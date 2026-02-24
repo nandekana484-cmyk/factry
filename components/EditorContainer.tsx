@@ -98,12 +98,16 @@ export default function EditorContainer({
   // デバッグ用
   console.log("Paper:", paper, "Orientation:", orientation, "Width:", width, "Height:", height);
 
-  // スナップ関数
+
+  // スナップ関数（1軸）
   const snap = (value: number, size: number = gridSize): number => {
     const rounded = Math.round(value);
     if (!snapMode) return rounded;
     return Math.round(rounded / size) * size;
   };
+
+  // スナップ関数（2軸、TextBlock用）
+  const snapXY = (x: number, y: number) => ({ x: snap(x), y: snap(y) });
 
   const offsetX = Math.round((width / 2) % gridSize);
   const offsetY = Math.round((height / 2) % gridSize);
@@ -372,7 +376,7 @@ export default function EditorContainer({
                     selectedBlock={selectedBlock}
                     updateBlock={updateBlock}
                     selectBlock={selectBlock}
-                    snap={snap}
+                    snap={snapXY}
                     isReadOnly={false}
                   />
                 ) : isPlaceholder ? (

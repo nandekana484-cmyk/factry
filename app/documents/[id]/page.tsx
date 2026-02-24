@@ -289,7 +289,7 @@ export default function DocumentDetailPage() {
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <h3 className="font-semibold text-yellow-900 mb-2">承認リクエスト</h3>
             <p className="text-sm text-yellow-800">
-              申請者: {document.approvalRequest.requester.email}
+                申請者: {document.approvalRequest?.requester?.email || "不明"}
             </p>
             <p className="text-sm text-yellow-800">
               申請日:{" "}

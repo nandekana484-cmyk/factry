@@ -112,11 +112,10 @@
   }
 
   /* 図形のボーダーと色を確実に印刷 */
-  [data-block-id] {
-    print-color-adjust: exact !important;
-    -webkit-print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
+    [data-block-id] {
+      print-color-adjust: exact !important;
+      -webkit-print-color-adjust: exact !important;
+    }
 
   /* キャンバスを全画面表示 */
   .print-area {

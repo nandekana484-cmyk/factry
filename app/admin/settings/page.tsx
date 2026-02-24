@@ -224,7 +224,7 @@ export default function SettingsPage() {
                     })
                   }
                   className="w-full border rounded px-3 py-2 text-sm"
-                  maxLength="1"
+                  maxLength={1}
                 />
               </div>
 
