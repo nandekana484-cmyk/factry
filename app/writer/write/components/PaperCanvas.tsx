@@ -47,7 +47,7 @@ const PaperCanvas = React.forwardRef<HTMLDivElement, PaperCanvasProps>(
     return (
       <div
         ref={ref}
-        className="bg-white shadow-lg print-area relative"
+        className="bg-white shadow-lg relative"
         style={{
           width: `${width}px`,
           height: `${height}px`,

@@ -11,6 +11,7 @@ interface WriterPageTabsProps {
   currentPage: number;
   onSwitchPage: (pageNumber: number) => void;
   onDeletePage: (pageNumber: number) => void;
+  className?: string;
 }
 
 /**
@@ -22,10 +23,11 @@ export default function WriterPageTabs({
   currentPage,
   onSwitchPage,
   onDeletePage,
+  className,
 }: WriterPageTabsProps) {
   return (
     <div 
-      className="border-t bg-white p-2 flex gap-2 items-center"
+      className={`border-t bg-white p-2 flex gap-2 items-center ${className || ''}`}
       data-ignore-deselect="true"
     >
       {pages.map((page) => (

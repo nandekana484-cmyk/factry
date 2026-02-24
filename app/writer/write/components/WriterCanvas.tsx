@@ -105,7 +105,7 @@ const WriterCanvas: React.FC<WriterCanvasProps> = ({
   };
 
   const SettingsPanel = (
-    <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-b border-gray-200 select-none">
+    <div className="no-print flex items-center gap-3 px-4 py-2 bg-gray-50 border-b border-gray-200 select-none">
       <label className="flex items-center gap-1">
         <input type="checkbox" checked={showGrid} onChange={e => setShowGrid(e.target.checked)} />
         グリッド
@@ -169,7 +169,6 @@ const WriterCanvas: React.FC<WriterCanvasProps> = ({
 
       {SettingsPanel}
 
-      {/* ★ プロパティボックスはここに1つだけ描画（画面全体に対して fixed） */}
       {showPropertyBox && selectedBlock && (
         <FloatingPropertyBox
           block={selectedBlock}
@@ -180,7 +179,7 @@ const WriterCanvas: React.FC<WriterCanvasProps> = ({
       )}
 
       <CanvasContainer>
-        <ScaledCanvas zoom={zoom}>
+        <ScaledCanvas zoom={zoom} className="print-area">
           <div
             style={{
               width: CANVAS_WIDTH,
@@ -215,6 +214,7 @@ const WriterCanvas: React.FC<WriterCanvasProps> = ({
         currentPage={currentPage}
         onSwitchPage={onSwitchPage}
         onDeletePage={onDeletePage}
+        className="no-print"
       />
     </div>
   );
