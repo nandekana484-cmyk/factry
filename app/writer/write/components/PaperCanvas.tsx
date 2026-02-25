@@ -72,6 +72,7 @@ const PaperCanvas = React.forwardRef<HTMLDivElement, PaperCanvasProps>(
           if (isTextBlock) {
             return (
               <TextBlock
+                key={block.id}
                 block={block}
                 isSelected={isSelected}
                 selectedBlock={selectedBlock}
@@ -91,6 +92,7 @@ const PaperCanvas = React.forwardRef<HTMLDivElement, PaperCanvasProps>(
           if (isPlaceholder) {
             return (
               <PlaceholderBlock
+                key={block.id}
                 block={block}
                 isSelected={isSelected}
                 updateBlock={onUpdateBlock}
@@ -108,6 +110,7 @@ const PaperCanvas = React.forwardRef<HTMLDivElement, PaperCanvasProps>(
 
           return (
             <ShapeBlock
+              key={block.id}
               block={block}
               blocks={pageBlocks}
               isSelected={isSelected}

@@ -119,7 +119,7 @@
 
   /* ★ ここから writer-paper の固定サイズを削除（動的注入に任せる） */
   .writer-paper {
-    margin: 0 auto !important;
+    margin: -5mm auto 0 auto !important;
     box-shadow: none !important;
     page-break-after: always;
   }

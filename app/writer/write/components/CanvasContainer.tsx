@@ -8,7 +8,7 @@ interface CanvasContainerProps {
 
 export default function CanvasContainer({ children }: CanvasContainerProps) {
   return (
-    <div className="canvas-container flex-1 overflow-auto relative flex justify-center items-start py-16 px-20">
+    <div className="canvas-container flex-1 overflow-auto relative flex justify-center items-start py-8 px-10">
       {children}
     </div>
   );
