@@ -1,8 +1,9 @@
 "use client";
 
 import { Rnd } from "react-rnd";
+import React, { useMemo } from "react";
 
-export default function ShapeBlock({
+function ShapeBlockComponent({
   block,
   blocks = [],
   isSelected,
@@ -13,41 +14,34 @@ export default function ShapeBlock({
   onDoubleClick,
 }: any) {
   const borderWidth = block.borderWidth || 1;
-  const clickThreshold = borderWidth + 4;
 
-  const checkAdjacent = () => {
-    if (block.type !== "rect" && block.type !== "circle") {
-      return { top: false, right: false, bottom: false, left: false };
-    }
+  /** Rnd の size / position を useMemo で安定化 */
+  const size = useMemo(
+    () => ({
+      width: Math.round(block.width),
+      height: Math.round(block.height),
+    }),
+    [block.width, block.height]
+  );
 
-    const adjacent = { top: false, right: false, bottom: false, left: false };
+  const position = useMemo(
+    () => ({
+      x: Math.round(block.x),
+      y: Math.round(block.y),
+    }),
+    [block.x, block.y]
+  );
 
-    blocks.forEach((other: any) => {
-      if (other.id === block.id) return;
-      if (other.type !== "rect" && other.type !== "circle") return;
-
-      const bx = Math.round(block.x);
-      const by = Math.round(block.y);
-      const bw = Math.round(block.width);
-      const bh = Math.round(block.height);
-      const ox = Math.round(other.x);
-      const oy = Math.round(other.y);
-      const ow = Math.round(other.width);
-      const oh = Math.round(other.height);
-
-      if (bx + bw === ox && by < oy + oh && by + bh > oy) {
-        adjacent.right = true;
-      }
-
-      if (by + bh === oy && bx < ox + ow && bx + bw > ox) {
-        adjacent.bottom = true;
-      }
-    });
-
-    return adjacent;
+  /** snap が number を返す前提で x,y / w,h をスナップ */
+  const applySnapXY = (x: number, y: number) => {
+    if (!snap) return { x, y };
+    return { x: snap(x), y: snap(y) };
   };
 
-  const adjacent = checkAdjacent();
+  const applySnapSize = (w: number, h: number) => {
+    if (!snap) return { w, h };
+    return { w: snap(w), h: snap(h) };
+  };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -57,35 +51,29 @@ export default function ShapeBlock({
 
   return (
     <Rnd
-      key={block.id}
       data-block-id={block.id}
-      size={{
-        width: Math.round(block.width),
-        height: Math.round(block.height),
-      }}
-      position={{
-        x: Math.round(block.x),
-        y: Math.round(block.y),
-      }}
+      size={size}
+      position={position}
       bounds="parent"
       disableDragging={isReadOnly || !isSelected}
       enableResizing={isReadOnly ? false : isSelected}
       onDragStop={(e, d) => {
         if (isReadOnly) return;
-        const snapped = snap(d.x, d.y);
+        const snapped = applySnapXY(d.x, d.y);
         updateBlock(block.id, { x: snapped.x, y: snapped.y });
       }}
       onResizeStop={(e, dir, ref, delta, pos) => {
         if (isReadOnly) return;
+
         const parsedWidth = parseFloat(ref.style.width) || block.width;
         const parsedHeight = parseFloat(ref.style.height) || block.height;
 
-        const snappedSize = snap(parsedWidth, parsedHeight);
-        const snappedPos = snap(pos.x, pos.y);
+        const snappedSize = applySnapSize(parsedWidth, parsedHeight);
+        const snappedPos = applySnapXY(pos.x, pos.y);
 
         updateBlock(block.id, {
-          width: snappedSize.x,
-          height: snappedSize.y,
+          width: snappedSize.w,
+          height: snappedSize.h,
           x: snappedPos.x,
           y: snappedPos.y,
         });
@@ -94,33 +82,19 @@ export default function ShapeBlock({
         e.stopPropagation();
         selectBlock(block.id);
       }}
-      onDoubleClick={handleDoubleClick}   // ★ ダブルクリックはここだけ
+      onDoubleClick={handleDoubleClick}
       style={{
-        outline: isReadOnly ? "none" : isSelected ? "3px solid #4A90E2" : "none",
+        outline: isReadOnly
+          ? "none"
+          : isSelected
+          ? "3px solid #4A90E2"
+          : "none",
         outlineOffset: "0px",
         cursor: isReadOnly ? "default" : isSelected ? "move" : "default",
         zIndex: block.zIndex || 100,
         boxSizing: "border-box",
       }}
     >
-      {/* 透明クリックレイヤー（選択のみ） */}
-      {!isReadOnly && !isSelected && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "auto",
-            cursor: "pointer",
-            zIndex: -1,
-            background: "transparent",
-          }}
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            selectBlock(block.id);
-          }}
-        />
-      )}
-
       {/* 実体描画 */}
       <div
         style={{
@@ -130,9 +104,12 @@ export default function ShapeBlock({
             block.type === "rect" || block.type === "circle"
               ? block.fillColor || block.backgroundColor || "transparent"
               : "transparent",
-          border: block.type === "rect" || block.type === "circle"
-            ? `${block.borderWidth || 1}px solid ${block.borderColor || "#000"}`
-            : "none",
+          border:
+            block.type === "rect" || block.type === "circle"
+              ? `${block.borderWidth || 1}px solid ${
+                  block.borderColor || "#000"
+                }`
+              : "none",
           borderRadius: block.type === "circle" ? "50%" : "0",
           boxSizing: "border-box",
           pointerEvents: "none",
@@ -156,7 +133,13 @@ export default function ShapeBlock({
           <svg
             width={block.width}
             height={block.height}
-            style={{ display: "block", pointerEvents: "none", width: "100%", height: "100%", overflow: "visible" }}
+            style={{
+              display: "block",
+              pointerEvents: "none",
+              width: "100%",
+              height: "100%",
+              overflow: "visible",
+            }}
             viewBox={`0 0 ${block.width} ${block.height}`}
           >
             <path
@@ -170,7 +153,11 @@ export default function ShapeBlock({
 
         {/* 矢印 */}
         {block.type === "arrow" && (
-          <svg width="100%" height="100%" style={{ display: "block", pointerEvents: "none" }}>
+          <svg
+            width="100%"
+            height="100%"
+            style={{ display: "block", pointerEvents: "none" }}
+          >
             <defs>
               <marker
                 id={`arrowhead-${block.id}`}
@@ -180,7 +167,10 @@ export default function ShapeBlock({
                 refY="3"
                 orient="auto"
               >
-                <polygon points="0 0, 10 3, 0 6" fill={block.borderColor || "#000"} />
+                <polygon
+                  points="0 0, 10 3, 0 6"
+                  fill={block.borderColor || "#000"}
+                />
               </marker>
             </defs>
             <line
@@ -213,7 +203,9 @@ export default function ShapeBlock({
                       <td
                         key={colIndex}
                         style={{
-                          border: `${block.borderWidth || 1}px solid ${block.borderColor || "#000"}`,
+                          border: `${block.borderWidth || 1}px solid ${
+                            block.borderColor || "#000"
+                          }`,
                           padding: "4px",
                           fontSize: `${cell.fontSize || 12}px`,
                           fontWeight: cell.fontWeight || "normal",
@@ -239,7 +231,6 @@ export default function ShapeBlock({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              border: "none",
               backgroundColor: "transparent",
               pointerEvents: "none",
             }}
@@ -264,3 +255,6 @@ export default function ShapeBlock({
     </Rnd>
   );
 }
+
+/** React.memo で再レンダー最適化 */
+export default React.memo(ShapeBlockComponent);

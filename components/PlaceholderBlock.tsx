@@ -1,8 +1,9 @@
 "use client";
 
 import { Rnd } from "react-rnd";
+import React, { useMemo } from "react";
 
-export default function PlaceholderBlock({
+function PlaceholderBlockComponent({
   block,
   isSelected,
   updateBlock,
@@ -12,20 +13,47 @@ export default function PlaceholderBlock({
   currentPage = 1,
 }: any) {
   const isEditable = block.editable !== false && !isReadOnly;
-  const showDiagonalLine = currentPage > 1 && block.type === "approvalStampPlaceholder";
+  const showDiagonalLine =
+    currentPage > 1 && block.type === "approvalStampPlaceholder";
+
+  /** Rnd の size / position を useMemo で安定化 */
+  const size = useMemo(
+    () => ({
+      width: Math.round(block.width),
+      height: Math.round(block.height),
+    }),
+    [block.width, block.height]
+  );
+
+  const position = useMemo(
+    () => ({
+      x: Math.round(block.x),
+      y: Math.round(block.y),
+    }),
+    [block.x, block.y]
+  );
+
+  /** snap を統一的に扱うラッパー（数値 or {x,y} 両対応） */
+  const applySnapXY = (x: number, y: number) => {
+    if (!snap) return { x, y };
+    const sx = snap(x);
+    const sy = snap(y);
+    return { x: sx, y: sy };
+  };
+
+  const applySnapSize = (w: number, h: number) => {
+    if (!snap) return { w, h };
+    const sw = snap(w);
+    const sh = snap(h);
+    return { w: sw, h: sh };
+  };
 
   return (
     <Rnd
-      key={block.id}
+      // ❌ key={block.id} は付けない
       data-block-id={block.id}
-      size={{
-        width: Math.round(block.width),
-        height: Math.round(block.height),
-      }}
-      position={{
-        x: Math.round(block.x),
-        y: Math.round(block.y),
-      }}
+      size={size}
+      position={position}
       bounds="parent"
       disableDragging={isReadOnly}
       enableResizing={isReadOnly ? false : isSelected}
@@ -36,32 +64,32 @@ export default function PlaceholderBlock({
       }}
       onDragStop={(e, d) => {
         if (isReadOnly) return;
-        // グリッドサイズに完全にスナップ
-        const newX = snap(d.x);
-        const newY = snap(d.y);
-        updateBlock(block.id, { x: newX, y: newY });
+        const snapped = applySnapXY(d.x, d.y);
+        updateBlock(block.id, { x: snapped.x, y: snapped.y });
       }}
       onResizeStop={(e, dir, ref, delta, pos) => {
         if (isReadOnly) return;
+
         const parsedWidth = parseFloat(ref.style.width) || block.width;
         const parsedHeight = parseFloat(ref.style.height) || block.height;
 
-        // サイズと位置を完全にグリッドスナップ
-        const newWidth = snap(parsedWidth);
-        const newHeight = snap(parsedHeight);
-        const newX = snap(pos.x);
-        const newY = snap(pos.y);
+        const snappedSize = applySnapSize(parsedWidth, parsedHeight);
+        const snappedPos = applySnapXY(pos.x, pos.y);
 
         updateBlock(block.id, {
-          width: newWidth,
-          height: newHeight,
-          x: newX,
-          y: newY,
+          width: snappedSize.w,
+          height: snappedSize.h,
+          x: snappedPos.x,
+          y: snappedPos.y,
         });
       }}
       style={{
-        outline: isReadOnly ? "none" : (isSelected ? "3px solid #4A90E2" : "none"),
-        outlineOffset: isSelected ? "0px" : "0px",
+        outline: isReadOnly
+          ? "none"
+          : isSelected
+          ? "3px solid #4A90E2"
+          : "none",
+        outlineOffset: "0px",
         cursor: isReadOnly ? "default" : "move",
         zIndex: block.zIndex || 1500,
         boxSizing: "border-box",
@@ -101,44 +129,42 @@ export default function PlaceholderBlock({
           >
             <div style={{ fontWeight: "bold" }}>承認印</div>
             <div style={{ fontSize: "11px" }}>({block.role})</div>
-            
+
             {/* 2ページ目以降は斜線を追加 */}
             {showDiagonalLine && (
-              <>
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    pointerEvents: "none",
-                  }}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  pointerEvents: "none",
+                }}
+              >
+                <svg
+                  width="100%"
+                  height="100%"
+                  style={{ position: "absolute", top: 0, left: 0 }}
                 >
-                  <svg
-                    width="100%"
-                    height="100%"
-                    style={{ position: "absolute", top: 0, left: 0 }}
-                  >
-                    <line
-                      x1="0"
-                      y1="0"
-                      x2="100%"
-                      y2="100%"
-                      stroke="#999999"
-                      strokeWidth="2"
-                    />
-                    <line
-                      x1="100%"
-                      y1="0"
-                      x2="0"
-                      y2="100%"
-                      stroke="#999999"
-                      strokeWidth="2"
-                    />
-                  </svg>
-                </div>
-              </>
+                  <line
+                    x1="0"
+                    y1="0"
+                    x2="100%"
+                    y2="100%"
+                    stroke="#999999"
+                    strokeWidth="2"
+                  />
+                  <line
+                    x1="100%"
+                    y1="0"
+                    x2="0"
+                    y2="100%"
+                    stroke="#999999"
+                    strokeWidth="2"
+                  />
+                </svg>
+              </div>
             )}
           </div>
         )}
@@ -172,3 +198,5 @@ export default function PlaceholderBlock({
     </Rnd>
   );
 }
+
+export default React.memo(PlaceholderBlockComponent);

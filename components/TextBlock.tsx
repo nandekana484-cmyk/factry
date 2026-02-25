@@ -1,6 +1,7 @@
 "use client";
 
 import { Rnd } from "react-rnd";
+import React, { useMemo } from "react";
 
 interface TextBlockProps {
   block: any;
@@ -14,7 +15,7 @@ interface TextBlockProps {
   onDoubleClick?: () => void;
 }
 
-export default function TextBlock({
+function TextBlockComponent({
   block,
   isSelected,
   selectedBlock,
@@ -28,6 +29,25 @@ export default function TextBlock({
   const canEditText = isTextEditable && block.editable !== false;
   const canMoveResize = !isReadOnly;
 
+  /** ------------------------------
+   *  Rnd の size / position を useMemo で安定化
+   * ------------------------------ */
+  const size = useMemo(
+    () => ({
+      width: Math.round(block.width),
+      height: Math.round(block.height),
+    }),
+    [block.width, block.height]
+  );
+
+  const position = useMemo(
+    () => ({
+      x: Math.round(block.x),
+      y: Math.round(block.y),
+    }),
+    [block.x, block.y]
+  );
+
   const applySnap = (x: number, y: number) => {
     if (snap) return snap(x, y);
     return { x, y };
@@ -35,16 +55,9 @@ export default function TextBlock({
 
   return (
     <Rnd
-      key={block.id}
-      data-block-id={block.id}
-      size={{
-        width: Math.round(block.width),
-        height: Math.round(block.height),
-      }}
-      position={{
-        x: Math.round(block.x),
-        y: Math.round(block.y),
-      }}
+      // ❌ key={block.id} は絶対に付けない（再生成されて snap が壊れる）
+      size={size}
+      position={position}
       bounds="parent"
       disableDragging={isReadOnly || !isSelected || block.isEditing}
       enableResizing={
@@ -68,7 +81,8 @@ export default function TextBlock({
         zIndex: block.zIndex || 1500,
         boxSizing: "border-box",
       }}
-      onMouseDown={(e: any) => {
+      data-block-id={block.id}
+      onMouseDown={(e) => {
         e.stopPropagation();
         selectBlock(block.id);
       }}
@@ -115,7 +129,7 @@ export default function TextBlock({
         }}
       />
 
-      {/* ダブルクリックで編集モードに入る透明レイヤー */}
+      {/* ダブルクリックで編集モード */}
       {canMoveResize && !block.isEditing && (
         <div
           className="editor-text-handle"
@@ -125,7 +139,6 @@ export default function TextBlock({
             left: 0,
             right: 0,
             bottom: 0,
-            boxSizing: "border-box",
             cursor: isSelected ? "move" : "default",
             zIndex: 200,
             pointerEvents: "auto",
@@ -133,10 +146,7 @@ export default function TextBlock({
           onDoubleClick={(e) => {
             e.stopPropagation();
             selectBlock(block.id);
-
-            // ★★★ これがないと編集できない
             updateBlock(block.id, { isEditing: true });
-
             onDoubleClick?.();
           }}
         />
@@ -166,25 +176,20 @@ export default function TextBlock({
               outline: "none",
               width: "100%",
               height: "100%",
-              pointerEvents: canEditText && block.isEditing ? "auto" : "none",
               cursor: canEditText ? "text" : "default",
               whiteSpace: "pre-wrap",
               overflowWrap: "break-word",
               padding: "4px",
             }}
-
             onBlur={(e) =>
-            updateBlock(block.id, {
-            label: e.currentTarget.innerText,
-            value: e.currentTarget.innerText,
-            isEditing: false,
-            })
+              updateBlock(block.id, {
+                label: e.currentTarget.innerText,
+                value: e.currentTarget.innerText,
+                isEditing: false,
+              })
             }
-            
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.stopPropagation();
-              }
+              if (e.key === "Enter") e.stopPropagation();
             }}
           >
             {block.label ?? block.value ?? ""}
@@ -194,3 +199,8 @@ export default function TextBlock({
     </Rnd>
   );
 }
+
+/** ------------------------------
+ *  React.memo で再レンダー最適化
+ * ------------------------------ */
+export default React.memo(TextBlockComponent);
