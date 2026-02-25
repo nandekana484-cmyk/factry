@@ -24,11 +24,6 @@
     --input: 0 0% 89.8%;
     --ring: 0 0% 3.9%;
     --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
   }
 
   .dark {
@@ -51,11 +46,6 @@
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
     --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
   }
 }
 
@@ -68,42 +58,32 @@
   }
 }
 
-/* 印刷時にテキストブロックの編集用枠線を非表示 */
+/* ================================
+   印刷スタイル（Editor + Writer）
+   ================================ */
 @media print {
-  /* UI要素を非表示 */
+
   .no-print {
     display: none !important;
   }
 
-  /* サイドバーとチャットを非表示 */
   body > div > div:first-child,
   body > div > div:last-child {
     display: none !important;
   }
 
-  /* テキストブロックの編集用UI */
-  .editor-text-frame {
+  .editor-text-frame,
+  .editor-text-block,
+  .editor-selected-border,
+  .drag-handle {
     display: none !important;
+    border: none !important;
   }
 
-  .editor-text-block {
-    border: none !important;
-  }
-  
-  .editor-selected-border {
-    border: none !important;
-  }
-  
-  .drag-handle {
-    border: none !important;
-  }
-  
-  /* 承認印の枠線を非表示 */
   .approval-border {
     border: none !important;
   }
 
-  /* SVG要素とマーカーを確実に印刷 */
   svg,
   svg *,
   marker,
@@ -111,32 +91,50 @@
     visibility: visible !important;
   }
 
-  /* 図形のボーダーと色を確実に印刷 */
-    [data-block-id] {
-      print-color-adjust: exact !important;
-      -webkit-print-color-adjust: exact !important;
-    }
+  [data-block-id] {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
 
-  /* キャンバスを全画面表示 */
-  .print-area {
+  /* WriterCanvas */
+  .canvas-container {
     overflow: visible !important;
-    width: 100% !important;
-    height: auto !important;
-  }
-
-  /* ズーム設定を無効化して実寸表示 */
-  .print-area > div {
     padding: 0 !important;
-    width: 100% !important;
-    height: auto !important;
     margin: 0 !important;
+    display: block !important;
   }
 
+  .print-area {
+    transform: none !important;
+    zoom: 1 !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  .print-area > div {
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  /* ★ ここから writer-paper の固定サイズを削除（動的注入に任せる） */
+  .writer-paper {
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    page-break-after: always;
+  }
+
+  .writer-paper canvas,
+  .writer-paper svg {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* EditorCanvas */
   .print-area > div > div {
     transform: none !important;
   }
 
-  /* キャンバスを用紙サイズに合わせる */
   .print-area .bg-white.shadow-lg {
     width: 100% !important;
     height: auto !important;
@@ -145,7 +143,6 @@
     page-break-after: always;
   }
 
-  /* ページ番号を下部中央に表示 (1 / 1 形式) */
   @page {
     @bottom-center {
       content: counter(page) " / " counter(pages);

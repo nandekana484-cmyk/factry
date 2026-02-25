@@ -255,8 +255,8 @@ export default function WriterPage() {
           setSnapMode={(value: string) => setSnapMode(value === "on")}
           zoom={zoom}
           setZoom={setZoom}
-          paper={editor.paper}
-          orientation={editor.orientation}
+          paper={editor.paper === "A4" || editor.paper === "A3" ? editor.paper : "A4"}
+          orientation={editor.orientation === "portrait" || editor.orientation === "landscape" ? editor.orientation : "portrait"}
           currentPage={editor.currentPage}
           onSaveDraft={actions.handleSaveDraft}
           onOverwriteDraft={actions.handleOverwriteDraft}

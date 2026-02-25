@@ -16,11 +16,10 @@ export default function ScaledCanvas({ children, zoom, className }: ScaledCanvas
         transform: `scale(${zoom})`,
         transformOrigin: "top left",
 
-        // ★ ズーム後の実寸サイズを補正（ズレ解消の本質）
+        // ズーム後の実寸補正（編集時のみ）
         width: `${100 / zoom}%`,
         height: `${100 / zoom}%`,
 
-        // レイアウト安定化
         display: "inline-block",
       }}
     >
