@@ -241,37 +241,38 @@ export default function WriterPage() {
 
       {/* 中央エディタエリア */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* エディタエリア */}
-        <WriterCanvas
-          blocks={editor.blocks}
-          selectedBlock={editor.selectedBlock}
-          onUpdateBlock={handleUpdateBlock}
-          onSelectBlock={editor.selectBlock}
-          showGrid={showGrid}
-          setShowGrid={setShowGrid}
-          gridSize={gridSize}
-          setGridSize={setGridSize}
-          snapMode={snapMode ? "on" : "off"}
-          setSnapMode={(value: string) => setSnapMode(value === "on")}
-          zoom={zoom}
-          setZoom={setZoom}
-          paper={editor.paper === "A4" || editor.paper === "A3" ? editor.paper : "A4"}
-          orientation={editor.orientation === "portrait" || editor.orientation === "landscape" ? editor.orientation : "portrait"}
-          currentPage={editor.currentPage}
-          onSaveDraft={actions.handleSaveDraft}
-          onOverwriteDraft={actions.handleOverwriteDraft}
-          currentDocumentId={editor.currentDocumentId}
-          onUndo={editor.undo}
-          onRedo={editor.redo}
-          canUndo={editor.canUndo}
-          canRedo={editor.canRedo}
-          pages={editor.pages}
-          onSwitchPage={actions.handleSwitchPage}
-          onDeletePage={actions.handleDeletePage}
-          showPropertyBox={showPropertyBox}
-          setShowPropertyBox={setShowPropertyBox}
-          readOnly={false}
-        />
+
+ {/* エディタエリア */}
+  <WriterCanvas
+  blocks={editor.blocks}
+  selectedBlock={editor.selectedBlock}
+  onUpdateBlock={handleUpdateBlock}
+  onSelectBlock={editor.selectBlock}
+  showGrid={showGrid}
+  setShowGrid={setShowGrid}
+  gridSize={gridSize}
+  setGridSize={setGridSize}
+  snapMode={snapMode ? "on" : "off"}
+  setSnapMode={(value: string) => setSnapMode(value === "on")}
+  zoom={zoom}
+  setZoom={setZoom}
+  paper={editor.paper}
+  orientation={editor.orientation}
+  currentPage={editor.currentPage}
+  onSaveDraft={actions.handleSaveDraft}
+  onOverwriteDraft={actions.handleOverwriteDraft}
+  currentDocumentId={editor.currentDocumentId}
+  onUndo={editor.undo}
+  onRedo={editor.redo}
+  canUndo={editor.canUndo}
+  canRedo={editor.canRedo}
+  pages={editor.pages}
+  onSwitchPage={actions.handleSwitchPage}
+  onDeletePage={actions.handleDeletePage}
+  showPropertyBox={showPropertyBox}
+  setShowPropertyBox={setShowPropertyBox}
+  readOnly={false}
+/>
 
         {/* ページタブ（下部） */}
         <div className="no-print">

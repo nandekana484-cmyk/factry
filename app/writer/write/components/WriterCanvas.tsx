@@ -30,9 +30,9 @@ interface WriterCanvasProps {
   zoom: number;
   setZoom: (v: number) => void;
 
-  paper: "A4" | "A3";
-  orientation: "portrait" | "landscape";
-  currentPage: number;
+paper: string;
+orientation: string;
+currentPage: number;
 
   showPropertyBox: boolean;
   setShowPropertyBox: (v: boolean) => void;
@@ -56,7 +56,7 @@ interface WriterCanvasProps {
 const sizes = {
   A4: { w: 794, h: 1123 },
   A3: { w: 1123, h: 1587 },
-};
+} as const;
 
 const WriterCanvas: React.FC<WriterCanvasProps> = ({
   blocks,
@@ -93,9 +93,9 @@ const WriterCanvas: React.FC<WriterCanvasProps> = ({
   /** ------------------------------
    *  A3/A4 + 縦横の動的サイズ計算
    * ------------------------------ */
-  const base = sizes[paper];
-  const pageWidth = orientation === "portrait" ? base.w : base.h;
-  const pageHeight = orientation === "portrait" ? base.h : base.w;
+const base = sizes[paper as keyof typeof sizes] ?? sizes["A4"];
+const pageWidth = orientation === "portrait" ? base.w : base.h;
+const pageHeight = orientation === "portrait" ? base.h : base.w;
 
   /** ------------------------------
    *  スナップ
