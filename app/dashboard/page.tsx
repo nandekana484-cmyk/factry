@@ -6,11 +6,22 @@ import { canAssignWorkflowRole, RoleMatrix } from "@/lib/role";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
-  // cookieのrole値を小文字で取得しUserRole型に
   const roleRaw = cookieStore.get("role")?.value;
   const role = (roleRaw ? roleRaw.toLowerCase() : undefined) as UserRole | undefined;
 
-  // ロール別メニュー
+  function getWorkflowKey(role: UserRole): keyof typeof RoleMatrix {
+    return role;
+  }
+
+  // ★ 承認フローの遷移先をロールで決定
+  const approvalFlowHref =
+    role === UserRole.CHECKER
+      ? "/checker"
+      : role === UserRole.APPROVER || role === UserRole.ADMIN
+      ? "/approver"
+      : "/documents";
+
+  // ★ メニュー一覧（承認フローは 1 つに統合）
   const menuItems = [
     {
       role: [UserRole.CREATOR, UserRole.CHECKER, UserRole.APPROVER, UserRole.ADMIN],
@@ -28,14 +39,17 @@ export default async function DashboardPage() {
       icon: "📄",
       color: "blue",
     },
+
+    // ★ 承認フロー（1つに統合）
     {
       role: [UserRole.CREATOR, UserRole.CHECKER, UserRole.APPROVER, UserRole.ADMIN],
       title: "承認フロー",
-      href: "/documents",
-      description: "文書の承認・差し戻し",
+      href: approvalFlowHref,
+      description: "文書の確認・承認・差し戻し",
       icon: "📋",
       color: "indigo",
     },
+
     {
       role: [UserRole.CREATOR, UserRole.CHECKER, UserRole.APPROVER, UserRole.ADMIN],
       title: "AI検索",
@@ -44,22 +58,17 @@ export default async function DashboardPage() {
       icon: "🤖",
       color: "green",
     },
+
+    // ★ 管理者ページ（admin 専用）
     {
-      role: [UserRole.APPROVER, UserRole.ADMIN],
+      role: [UserRole.ADMIN],
       title: "管理者ページ",
       href: "/admin",
       description: "管理者向けメニュー",
       icon: "🛠️",
       color: "purple",
     },
-    {
-      role: [UserRole.APPROVER, UserRole.ADMIN],
-      title: "承認者ページ",
-      href: "/approver",
-      description: "承認作業を行うページ",
-      icon: "✔️",
-      color: "yellow",
-    },
+
     {
       role: [UserRole.CREATOR, UserRole.CHECKER, UserRole.APPROVER, UserRole.ADMIN],
       title: "ライターページ",
@@ -70,19 +79,17 @@ export default async function DashboardPage() {
     },
   ];
 
-  const visibleItems = menuItems.filter((item) =>
-    item.role.some((r) => role && canAssignWorkflowRole(role, getWorkflowKey(r) as keyof typeof RoleMatrix))
-  );
-
-  // UserRole→RoleMatrixキー変換
-  function getWorkflowKey(role: UserRole): keyof typeof RoleMatrix {
-    // すでに小文字enumなのでそのまま返す
-    return role;
-  }
+  // ★ 管理者はすべて表示、それ以外はロール判定
+  const visibleItems = menuItems.filter((item) => {
+    if (role === UserRole.ADMIN) return true;
+    return (
+      item.role.includes(role!) &&
+      item.role.some((r) => canAssignWorkflowRole(role!, getWorkflowKey(r)))
+    );
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
-      {/* ヘッダー */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold text-gray-900">ダッシュボード</h1>
         <LogoutButton />
@@ -90,7 +97,6 @@ export default async function DashboardPage() {
 
       <p className="text-gray-600 mb-10">あなたの権限: {role}</p>
 
-      {/* メニューカード（WriterMenu と同じスタイル） */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {visibleItems.map((item) => (
           <Link key={item.href} href={item.href} className="group block">
@@ -120,14 +126,11 @@ export default async function DashboardPage() {
                     {item.title}
                   </p>
                   {item.description && (
-                    <p className="text-gray-600 text-sm mt-1">
-                      {item.description}
-                    </p>
+                    <p className="text-gray-600 text-sm mt-1">{item.description}</p>
                   )}
                 </div>
               </div>
 
-              {/* 矢印アニメーション */}
               <div className="mt-4 flex items-center text-sm font-semibold text-blue-600 group-hover:text-blue-700">
                 <span>開く</span>
                 <svg
@@ -136,12 +139,7 @@ export default async function DashboardPage() {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
             </div>

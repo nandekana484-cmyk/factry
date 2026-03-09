@@ -28,7 +28,7 @@ export interface Folder {
 }
 
 // 文書ステータス
-export type DocumentStatus = "draft" | "pending" | "approved";
+export type DocumentStatus = "draft" | "pending" | "approved" | "checking";
 
 // 承認アクション
 export type ApprovalAction = "submitted" | "approved" | "rejected" | "withdrawn" | "revised";
@@ -54,6 +54,16 @@ export interface ApprovalRequest {
     name?: string;
     email: string;
   };
+  checker: {
+    id: number;
+    name?: string;
+    email: string;
+  };
+  approver: {
+    id: number;
+    name?: string;
+    email: string;
+  };
   requested_at: string;
   comment: string | null;
 }
@@ -71,29 +81,32 @@ export interface RevisionHistory {
   createdAt: string;
 }
 
-// 文書（一覧用）
-export interface DocumentListItem {
+// 文書（Checker/Approver共通）
+export interface Document {
   id: number;
   title: string;
   status: DocumentStatus;
   managementNumber?: string | null;
-  creator: {
-    id: number;
-    name?: string;
-    email: string;
-    role: UserRole;
-  };
-  approvalRequest?: ApprovalRequest;
-  latestRevision?: {
-    id: number;
-    managementNumber: string;
-    revisionSymbol: string;
-    approvedBy: { id: number; name: string } | null;
-    approvedAt: string | null;
-  } | null;
+  creator: User;
+  approvalRequest?: ApprovalRequestWithCheck;
+  latestRevision?: LatestRevision | null;
   blockCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+// approvalRequest（CheckerPage構造を統合）
+export interface ApprovalRequestWithCheck extends ApprovalRequest {
+  checked_at?: string | null;
+}
+
+// latestRevision（CheckerPage構造を統合）
+export interface LatestRevision {
+  id: number;
+  managementNumber: string;
+  revisionSymbol: string;
+  approvedBy: { id: number; name: string } | null;
+  approvedAt: string | null;
 }
 
 // 文書（詳細用）
@@ -148,7 +161,7 @@ export interface ApiResponse<T = any> {
 
 // 文書一覧レスポンス
 export interface DocumentListResponse extends ApiResponse {
-  documents: DocumentListItem[];
+  documents: Document[];
 }
 
 // 文書詳細レスポンス
