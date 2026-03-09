@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef } from "react";
+import { useRouter } from "next/navigation";
 import CanvasContainer from "./CanvasContainer";
 import ScaledCanvas from "./ScaledCanvas";
 import PaperCanvas from "./PaperCanvas";
@@ -88,6 +89,7 @@ const WriterCanvas: React.FC<WriterCanvasProps> = ({
   onSwitchPage,
   onDeletePage,
 }) => {
+  const router = useRouter();
   const canvasRef = useRef<HTMLDivElement>(null);
 
   /** ------------------------------
@@ -237,6 +239,20 @@ const pageHeight = orientation === "portrait" ? base.h : base.w;
         className="px-2 py-1 border rounded bg-gray-200"
       >
         印刷プレビュー
+      </button>
+
+      {/* プレビュー用ボタン（右端） */}
+      <button
+        onClick={() => {
+          if (currentDocumentId) {
+            router.push(`/writer/preview/${currentDocumentId}`);
+          } else {
+            alert("文書が保存されていません。まず一時保存してください。");
+          }
+        }}
+        className="px-2 py-1 border rounded bg-blue-600 text-white hover:bg-blue-700"
+      >
+        プレビュー
       </button>
     </div>
   );

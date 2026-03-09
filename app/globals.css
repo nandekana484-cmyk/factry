@@ -150,4 +150,36 @@
       color: #666;
     }
   }
+  /* PDF風プレビュー専用CSS */
+  .preview-mode {
+    background: #f4f4f4;
+    padding-top: 40px;
+    padding-bottom: 40px;
+    overflow: auto;
+    min-height: 100vh;
+  }
+
+  .preview-mode .property-box,
+  .preview-mode .writer-sidebar,
+  .preview-mode .grid-lines,
+  .preview-mode .canvas-overlay,
+  .preview-mode .selection-box {
+    display: none !important;
+  }
+
+  .preview-page {
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.15), 0 1.5px 6px rgba(0,0,0,0.08);
+    border: 1px solid #e0e0e0;
+    margin-left: auto;
+    margin-right: auto;
+    width: 794px;
+    min-height: 1123px;
+    display: block;
+    position: relative;
+  }
+
+  .preview-page + .preview-page {
+    margin-top: 40px;
+  }
 }
